@@ -1,0 +1,47 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Файлы ресурсов">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Lib">
+      <UniqueIdentifier>{c3303ffd-4686-4201-8fa8-d77cc9cb897c}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="UACEDomain.ixx">
+      <Filter>Lib</Filter>
+    </ClCompile>
+    <ClCompile Include="MemoryManagerCommon.ixx">
+      <Filter>Lib</Filter>
+    </ClCompile>
+    <ClCompile Include="UACEMemPool.ixx">
+      <Filter>Lib</Filter>
+    </ClCompile>
+    <ClCompile Include="UACEQueue.ixx">
+      <Filter>Lib</Filter>
+    </ClCompile>
+    <ClCompile Include="UACEBasicScriptFuncs.ixx">
+      <Filter>Lib</Filter>
+    </ClCompile>
+    <ClCompile Include="UACEScript.ixx">
+      <Filter>Lib</Filter>
+    </ClCompile>
+    <ClCompile Include="UACEArray.ixx">
+      <Filter>Lib</Filter>
+    </ClCompile>
+    <ClCompile Include="UACEScriptDecoder.ixx">
+      <Filter>Lib</Filter>
+    </ClCompile>
+    <ClCompile Include="UACEScriptLoader.ixx">
+      <Filter>Lib</Filter>
+    </ClCompile>
+    <ClCompile Include="UACEUnifiedBlockAllocator.ixx">
+      <Filter>Lib</Filter>
+    </ClCompile>
+    <ClCompile Include="UACERingBuffer.ixx">
+      <Filter>Lib</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>
