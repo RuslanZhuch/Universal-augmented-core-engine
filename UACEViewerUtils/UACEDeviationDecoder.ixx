@@ -17,20 +17,20 @@ using namespace UACE::MemManager::Literals;
 export namespace UACE::Deviation
 {
 
-	template <typename _OnCreation,
-		typename _OnDeletion,
-		typename _OnRename,
-		typename _OnTransform,
-		typename _OnMesh>
+	template <typename OnCreation,
+		typename OnDeletion,
+		typename OnRename,
+		typename OnTransform,
+		typename OnMesh>
 	struct Desc
 	{
 		Desc() = delete;
 		explicit Desc(
-			const _OnCreation& onCreation, 
-			const _OnDeletion& onDeletion,
-			const _OnRename& onRename,
-			const _OnTransform& onTransform,
-			const _OnMesh& onMesh) :
+			const OnCreation& onCreation, 
+			const OnDeletion& onDeletion,
+			const OnRename& onRename,
+			const OnTransform& onTransform,
+			const OnMesh& onMesh) :
 			cbOnCreation(onCreation),
 			cbOnDeletion(onDeletion),
 			cbOnRename(onRename),
@@ -38,15 +38,15 @@ export namespace UACE::Deviation
 			cbOnMesh(onMesh)
 		{}
 
-		_OnCreation cbOnCreation {};
-		_OnDeletion cbOnDeletion {};
-		_OnRename cbOnRename {};
-		_OnTransform cbOnTransform {};
-		_OnMesh cbOnMesh{};
+		OnCreation cbOnCreation {};
+		OnDeletion cbOnDeletion {};
+		OnRename cbOnRename {};
+		OnTransform cbOnTransform {};
+		OnMesh cbOnMesh{};
 	};
 
-	template<typename _Desc>
-	concept DeviationDesc = requires(_Desc && d)
+	template<typename Desc>
+	concept DeviationDesc = requires(Desc && d)
 	{
 		requires std::is_invocable_v<decltype(d.cbOnCreation), size_t, size_t, bool>;
 		requires std::is_invocable_v<decltype(d.cbOnDeletion), size_t>;
@@ -60,7 +60,7 @@ export namespace UACE::Deviation
 export namespace UACE
 {
 
-	template <UACE::Deviation::DeviationDesc _DevDesc, typename _Alloc>
+	template <UACE::Deviation::DeviationDesc DevDesc, typename Alloc>
 	class DeviationDecoder
 	{
 
@@ -69,7 +69,7 @@ export namespace UACE
 	public:
 
 		DeviationDecoder() = delete;
-		explicit DeviationDecoder(_Alloc* alloc, const _DevDesc& desc, const std::string_view dbFile, const std::string_view ip, int port)
+		explicit DeviationDecoder(Alloc* alloc, const DevDesc& desc, const std::string_view dbFile, const std::string_view ip, int port)
 			:desc(desc), client(alloc, ip, port)
 		{
 			std::memset(this->dbName, 0, sizeof(this->dbName));
@@ -162,8 +162,8 @@ export namespace UACE
 
 	private:
 
-		_DevDesc desc;
-		UACE::Client<_Alloc> client;
+		DevDesc desc;
+		UACE::Client<Alloc> client;
 
 		std::array<char, 1_kb> recPkg{};
 

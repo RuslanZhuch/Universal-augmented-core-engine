@@ -555,8 +555,8 @@ TEST(Containers, Array)
 	{
 
 		UACE::Containers::Array<int, 20, upa::UnifiedBlockAllocator> arr(&ubAlloc);
-		EXPECT_EQ(arr.capacity(), 20);
-		EXPECT_EQ(arr.size(), 0);
+		EXPECT_EQ(arr.getCapacity(), 20);
+		EXPECT_EQ(arr.getSize(), 0);
 		const auto s1{ arr.append(10) };
 		EXPECT_EQ(s1, 1);
 		EXPECT_EQ(arr[0], 10);
@@ -565,14 +565,14 @@ TEST(Containers, Array)
 		EXPECT_EQ(arr[0], 10);
 		EXPECT_EQ(arr[1], 20);
 		arr.clear();
-		EXPECT_EQ(arr.size(), 2);
+		EXPECT_EQ(arr.getSize(), 2);
 		EXPECT_EQ(arr[0], 0);
 		EXPECT_EQ(arr[1], 0);
 		arr.reset();
-		EXPECT_EQ(arr.size(), 0);
+		EXPECT_EQ(arr.getSize(), 0);
 
 		arr.resize(5);
-		EXPECT_EQ(arr.size(), 5);
+		EXPECT_EQ(arr.getSize(), 5);
 		arr[0] = 10;
 		arr[1] = 20;
 		arr[2] = 30;

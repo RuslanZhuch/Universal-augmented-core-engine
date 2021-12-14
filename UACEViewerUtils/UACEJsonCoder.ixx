@@ -47,8 +47,8 @@ export namespace UACE::JsonCoder
 namespace UACE::JsonCoder
 {
 
-	template <typename _T>
-	[[nodiscard]] std::optional<_T> parseAs(const rapidjson::Document& doc, std::string_view memberName)
+	template <typename T>
+	[[nodiscard]] std::optional<T> parseAs(const rapidjson::Document& doc, std::string_view memberName)
 	{
 
 		if (!doc.HasMember(memberName.data()))
@@ -58,7 +58,7 @@ namespace UACE::JsonCoder
 
 		const auto mPkgType{ doc.FindMember(memberName.data()) };
 
-		if constexpr (std::is_same_v<_T, std::string_view>)
+		if constexpr (std::is_same_v<T, std::string_view>)
 		{
 			if (!mPkgType->value.IsString())
 			{
@@ -67,7 +67,7 @@ namespace UACE::JsonCoder
 
 			return mPkgType->value.GetString();
 		}
-		else if constexpr (std::is_same_v<_T, uint32_t>)
+		else if constexpr (std::is_same_v<T, uint32_t>)
 		{
 			if (!mPkgType->value.IsUint())
 			{

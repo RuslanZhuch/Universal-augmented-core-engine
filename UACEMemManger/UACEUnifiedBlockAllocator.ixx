@@ -7,77 +7,12 @@ module;
 
 export module UACEUnifiedBlockAllocator;
 export import MemoryManagerCommon;
+export import UACEAllocator;
 
 import UACEDomain;
 
 export namespace UACE::MemManager::UnifiedBlockAllocator
 {
-
-	template <typename T, typename Alloc>
-	struct Ptr
-	{
-
-		size_t size{ 0 };
-		T* ptr{ nullptr };
-		Alloc* allocPtr{ nullptr };
-
-		T* operator->()
-		{
-			return ptr;
-		}
-		T operator*()
-		{
-			return *ptr;
-		}
-		
-		Ptr() = delete;
-		Ptr(T* ptr, Alloc* allocPtr)
-			:ptr(ptr), allocPtr(allocPtr), size(sizeof(T) * (allocPtr != nullptr))
-		{}
-		Ptr(T* ptr, Alloc * allocPtr, size_t size)
-			:ptr(ptr), allocPtr(allocPtr), size(size)
-		{}
-
-
-		Ptr(Ptr&& other) noexcept 
-			: ptr(std::exchange(other.ptr, nullptr)), 
-			allocPtr(std::exchange(other.allocPtr, nullptr)),
-			size(std::exchange(other.size, 0))
-		{}
-
-		Ptr& operator=(Ptr&& other) noexcept
-		{
-			std::swap(this->ptr, other.ptr);
-			std::swap(this->allocPtr, other.allocPtr);
-			std::swap(this->size, other.size);
-			return *this;
-		}
-
-		~Ptr()
-		{
-			this->release();
-		}
-
-		Ptr(const Ptr& other) = delete;
-		Ptr& operator=(const Ptr& other) = delete;
-
-//		auto deepCopy()
-//		{
-//			auto rawData{ this->allocPtr->create_raw(this->size) };
-//			memcpy(rawData, this->ptr, this->size);
-//			return Ptr<T>(reinterpret_cast<T*>(rawData), this->size)
-//		}
-
-		void release()
-		{
-			if (this->ptr != nullptr)
-			{
-				this->allocPtr->dealloc(reinterpret_cast<char*>(ptr), this->size);
-				this->ptr = nullptr;
-			}
-		}
-
-	};
 
 	class UnifiedBlockLogic
 	{
@@ -240,16 +175,16 @@ export namespace UACE::MemManager::UnifiedBlockAllocator
 			return Ptr<T, UnifiedBlockAllocator>(objPtr, this);
 		}
 
-		template<typename _T = char>
-		Ptr<_T, UnifiedBlockAllocator> create_raw(int numOfEls)
+		template<typename T = char>
+		Ptr<T, UnifiedBlockAllocator> create_raw(int numOfEls)
 		{
-			const auto numOfBytes{ numOfEls * sizeof(_T) };
+			const auto numOfBytes{ numOfEls * sizeof(T) };
 			char* allowedPtr{ this->requestMemory(numOfBytes) };
 			if (allowedPtr == nullptr)
 			{
-				return Ptr<_T, UnifiedBlockAllocator>(nullptr, nullptr);
+				return Ptr<T, UnifiedBlockAllocator>(nullptr, nullptr);
 			}
-			return Ptr<_T, UnifiedBlockAllocator>(reinterpret_cast<_T*>(allowedPtr), this, numOfEls);
+			return Ptr<T, UnifiedBlockAllocator>(reinterpret_cast<T*>(allowedPtr), this, numOfEls);
 		}
 		template <typename T, typename ... Args>
 		T* create(Args && ... args)

@@ -466,9 +466,9 @@ TEST(deviationDecoder, decodeFromClient)
 	UACE::DeviationDecoder devDecoder(&ubAlloc, desc, "loggerDatabase.sqlite", "127.0.0.1", 6000);
 
 
-	const auto createBuffer = []<size_t _size>(const char (&charArray)[_size])
+	const auto createBuffer = []<size_t size>(const char (&charArray)[size])
 	{
-		std::array<char, _size - 1> sendData{};
+		std::array<char, size - 1> sendData{};
 		memcpy(sendData.data(), charArray, sendData.size());
 		return sendData;
 	};

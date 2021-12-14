@@ -7,28 +7,24 @@ import UACEScriptLoader;
 import UACEScriptDecoder;
 import UACEUnifiedBlockAllocator;
 
-template<typename _Alloc>
+import UACEScriptBasic;
+
+template<typename Alloc>
 class Prototype;
-
-template<typename _Alloc, typename _DType>
-using ubPtr_t = UACE::MemManager::UnifiedBlockAllocator::Ptr<_DType, _Alloc>;
-
-template<typename _Alloc>
-using dataPtr_t = ubPtr_t<_Alloc, UACE::Containers::Array<int, 100, _Alloc>>;
 
 export namespace UACE::Script
 {
 
-	template<typename _Alloc>
+	template<typename Alloc>
 	class Instance
 	{
 	public:
 
-		explicit Instance(UACE::Containers::Array<int, 100, _Alloc>* inFuncData,
-			UACE::Containers::Array<int, 100, _Alloc>* inStructData, _Alloc* alloc)
-			: funcData(dataPtr_t<_Alloc>(nullptr, nullptr)), structData(inStructData), alloc(alloc)
+		explicit Instance(UACE::Containers::Array<int, SCRIPT_DATA_BYTES, Alloc>* inFuncData,
+			UACE::Containers::Array<int, SCRIPT_DATA_BYTES, Alloc>* inStructData, Alloc* alloc)
+			: funcData(dataPtr_t<Alloc>(nullptr, nullptr)), structData(inStructData), alloc(alloc)
 		{
-			this->funcData = this->alloc->create_unique<UACE::Containers::Array<int, 100, _Alloc>>(alloc);
+			this->funcData = this->alloc->create_unique<UACE::Containers::Array<int, SCRIPT_DATA_BYTES, Alloc>>(alloc);
 			*this->funcData.ptr = inFuncData->copy();
 			this->funcData.allocPtr = alloc;
 		}
@@ -65,7 +61,7 @@ export namespace UACE::Script
 
 				}
 
-				if ((point == this->structData->size()) || (point == this->structData->size() - 1))
+				if ((point == this->structData->getSize()) || (point == this->structData->getSize() - 1))
 				{
 					break;
 				}
@@ -77,20 +73,20 @@ export namespace UACE::Script
 		}
 
 	private:
-		Prototype<_Alloc>* proto{ nullptr };
+		Prototype<Alloc>* proto{ nullptr };
 
-		_Alloc* alloc{ nullptr };
+		Alloc* alloc{ nullptr };
 
-		dataPtr_t<_Alloc> funcData;
-		UACE::Containers::Array<int, 100, _Alloc>* structData{ nullptr };
+		dataPtr_t<Alloc> funcData;
+		UACE::Containers::Array<int, SCRIPT_DATA_BYTES, Alloc>* structData{ nullptr };
 	};
 
-	template<typename _Alloc>
+	template<typename Alloc>
 	class Prototype
 	{
 
 	public:
-		explicit Prototype(_Alloc* alloc)
+		explicit Prototype(Alloc* alloc)
 			:alloc(alloc)
 		{
 
@@ -107,14 +103,14 @@ export namespace UACE::Script
 
 		auto createInstance()
 		{
-			return this->alloc->create_unique<Instance<_Alloc>>(this->scriptData.funcDataPtr.ptr, this->scriptData.structDataPtr.ptr, this->alloc);
+			return this->alloc->create_unique<Instance<Alloc>>(this->scriptData.funcDataPtr.ptr, this->scriptData.structDataPtr.ptr, this->alloc);
 		}
 
 	private:
 		
 		bool bLoaded{ false };
-		_Alloc* alloc{ nullptr };
-		UACE::Script::Decoder<_Alloc>::ScriptData scriptData;
+		Alloc* alloc{ nullptr };
+		UACE::Script::Decoder<Alloc>::ScriptData scriptData;
 
 	};
 

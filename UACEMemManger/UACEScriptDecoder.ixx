@@ -7,41 +7,36 @@ import UACEUnifiedBlockAllocator;
 
 import UACEBasicScriptFuncs;
 
-template<typename _Alloc, typename _DType>
-using ubPtr_t = UACE::MemManager::UnifiedBlockAllocator::Ptr<_DType, _Alloc>;
-
-template<typename _Alloc>
-using dataPtr_t = ubPtr_t<_Alloc, UACE::Containers::Array<int, 100, _Alloc>>;
+import UACEScriptBasic;
 
 export namespace UACE::Script
 {
 
-	template <typename _Alloc>
+	template <typename Alloc>
 	class Decoder
 	{
 
 	public:
 
-//		template<typename _Alloc>
 		struct ScriptData
 		{
 
 			explicit ScriptData()
-				:funcDataPtr(dataPtr_t<_Alloc>(nullptr, nullptr)), structDataPtr(dataPtr_t<_Alloc>(nullptr, nullptr))
+				:funcDataPtr(dataPtr_t<Alloc>(nullptr, nullptr)), structDataPtr(dataPtr_t<Alloc>(nullptr, nullptr))
 			{}
 			ScriptData(auto funcDataPtr, auto structDataPtr)
 				:funcDataPtr(std::move(funcDataPtr)), structDataPtr(std::move(structDataPtr))
 			{}
 
-			dataPtr_t<_Alloc> funcDataPtr;
-			dataPtr_t<_Alloc> structDataPtr;
+			dataPtr_t<Alloc> funcDataPtr;
+			dataPtr_t<Alloc> structDataPtr;
 
 		};
 
 	public:
 		Decoder() = delete;
 
-		explicit Decoder(_Alloc* alloc)
+		explicit Decoder(Alloc* alloc)
 			:alloc(alloc)
 		{}
 
@@ -61,7 +56,7 @@ export namespace UACE::Script
 			const auto numOfFuncDataBytes{ funcDataLen * 4 };
 
 			auto funcData{ this->alloc->create_unique <
-				UACE::Containers::Array<int, 100, _Alloc>>(this->alloc) };
+				UACE::Containers::Array<int, 100, Alloc>>(this->alloc) };
 			funcData->resize(funcDataLen);
 			memcpy(funcData->data(), point, numOfFuncDataBytes);
 			point += numOfFuncDataBytes;
@@ -73,7 +68,7 @@ export namespace UACE::Script
 			const auto numOfSctructDataBytes{ structDataLen * 4 };
 
 			auto structData{ this->alloc->create_unique <
-				UACE::Containers::Array<int, 100, _Alloc>>(this->alloc) };
+				UACE::Containers::Array<int, 100, Alloc>>(this->alloc) };
 			structData->resize(structDataLen);
 			memcpy(structData->data(), point, numOfSctructDataBytes);
 			point += numOfSctructDataBytes;
@@ -91,10 +86,10 @@ export namespace UACE::Script
 				memcpy(funcNameBuffer.data(), point, 32);
 				point += 32;
 
-				if (std::strcmp(funcNameBuffer.data(), "mathPlus") &&
-					std::strcmp(funcNameBuffer.data(), "mathNegate") &&
-					std::strcmp(funcNameBuffer.data(), "getObj1") &&
-					std::strcmp(funcNameBuffer.data(), "processObj"))
+				if (std::strcmp(funcNameBuffer.data(), "mathPlus") != 0 &&
+					std::strcmp(funcNameBuffer.data(), "mathNegate") != 0 &&
+					std::strcmp(funcNameBuffer.data(), "getObj1") != 0&&
+					std::strcmp(funcNameBuffer.data(), "processObj") != 0)
 				{
 					break;
 				}
@@ -141,7 +136,7 @@ export namespace UACE::Script
 		}
 
 	private:
-		_Alloc* alloc{ nullptr };
+		Alloc* alloc{ nullptr };
 
 	};
 

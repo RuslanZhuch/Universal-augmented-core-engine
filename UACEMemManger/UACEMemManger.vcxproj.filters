@@ -43,5 +43,11 @@
     <ClCompile Include="UACERingBuffer.ixx">
       <Filter>Lib</Filter>
     </ClCompile>
+    <ClCompile Include="UACEAllocator.ixx">
+      <Filter>Lib</Filter>
+    </ClCompile>
+    <ClCompile Include="UACEScriptBasic.ixx">
+      <Filter>Lib</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

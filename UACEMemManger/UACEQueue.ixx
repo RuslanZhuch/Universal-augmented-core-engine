@@ -12,7 +12,7 @@ using ubAlloc = UACE::MemManager::UnifiedBlockAllocator::UnifiedBlockAllocator;
 export namespace UACE::UTILS
 {
 
-	template<typename T, size_t _size>
+	template<typename T, size_t size>
 	class Queue
 	{
 
@@ -36,7 +36,7 @@ export namespace UACE::UTILS
 
 			std::lock_guard gl(this->m);
 
-			if (this->numOfElements >= _size)
+			if (this->numOfElements >= size)
 			{
 				return false;
 			}
@@ -86,10 +86,10 @@ export namespace UACE::UTILS
 
 		constexpr auto getIsEmpty() const noexcept { return this->bIsEmpty; }
 
-		constexpr auto getMaxEls() const noexcept { return _size; }
+		constexpr auto getMaxEls() const noexcept { return size; }
 
 	private:
-		constexpr auto computeWrappedIndex(size_t val) { return val % _size; }
+		constexpr auto computeWrappedIndex(size_t val) { return val % size; }
 
 	private:
 		ubAlloc* allocator{ nullptr };

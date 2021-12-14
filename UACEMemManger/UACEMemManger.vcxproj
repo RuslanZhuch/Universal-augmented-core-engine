@@ -20,6 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MemoryManagerCommon.ixx" />
+    <ClCompile Include="UACEAllocator.ixx" />
     <ClCompile Include="UACEArray.ixx" />
     <ClCompile Include="UACEBasicScriptFuncs.ixx" />
     <ClCompile Include="UACEQueue.ixx" />
@@ -27,6 +28,7 @@
     <ClCompile Include="UACEMemPool.ixx" />
     <ClCompile Include="UACERingBuffer.ixx" />
     <ClCompile Include="UACEScript.ixx" />
+    <ClCompile Include="UACEScriptBasic.ixx" />
     <ClCompile Include="UACEScriptDecoder.ixx" />
     <ClCompile Include="UACEScriptLoader.ixx" />
     <ClCompile Include="UACEUnifiedBlockAllocator.ixx" />
