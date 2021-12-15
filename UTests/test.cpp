@@ -1,9 +1,6 @@
 
 #pragma warning(disable: 5050)
 #include "gtest/gtest.h"
-//#include "testTCP.h"
-#include "testBuffers.h"
-//#include "testDeviation.h"
 
 //#include "../UACEMemManger/UACEDomain.h"
 import MemoryManagerCommon;
@@ -24,7 +21,6 @@ import UACEScript;
 #include <functional>
 #include <fstream>
 #include <array>
-
 
 using namespace UACE::MemManager::Literals;
 

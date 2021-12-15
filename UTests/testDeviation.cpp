@@ -1,5 +1,3 @@
-#pragma once
-
 #pragma warning(disable: 5050)
 #include "gtest/gtest.h"
 #include <variant>
@@ -556,7 +554,5 @@ TEST(deviationDecoder, decodeFromClient)
 	server.sendData(aMeshData);
 
 	while (!bComplete1) { devDecoder.tick(); }
-
-//	static_assert(false, "Test database part 2");
 
 }

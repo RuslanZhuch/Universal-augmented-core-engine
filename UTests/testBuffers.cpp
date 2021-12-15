@@ -1,6 +1,3 @@
-#pragma once
-
-
 #pragma warning(disable: 5050)
 #include "gtest/gtest.h"
 
