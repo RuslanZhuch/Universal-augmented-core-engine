@@ -63,6 +63,9 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\UACEExecutor\UACEExecutor.vcxproj">
+      <Project>{fbc679e7-b292-4026-82d3-5e5b904c7081}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\UACEMemManger\UACEMemManger.vcxproj">
       <Project>{3b222276-56be-4f49-99fa-be9d6e138ff9}</Project>
     </ProjectReference>
