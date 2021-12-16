@@ -11,7 +11,7 @@ import UACEArray;
 export namespace UACE::Map
 {
 
-	template <typename Alloc>
+	template <UACE::MemManager::Allocator Alloc>
 	class DirectoryHeader
 	{
 
@@ -23,10 +23,10 @@ export namespace UACE::Map
 
 	public:
 		explicit DirectoryHeader(Alloc* alloc, uint32_t numOfElements) 
-			: dataPtr(alloc->create_raw<Element>(numOfElements))
+			: dataPtr(alloc->createRaw<Element>(numOfElements))
 		{
 
-			this->maxElements = this->dataPtr.size;
+			this->maxElements = this->dataPtr.numOfElements;
 
 			this->newElementPtr = this->dataPtr.ptr;
 
@@ -50,7 +50,7 @@ export namespace UACE::Map
 
 			this->endElementPtr = this->newElementPtr;
 
-			const auto bOutOfRange{ this->newElementPtr >= (dataPtr.ptr + dataPtr.size) };
+			const auto bOutOfRange{ this->newElementPtr >= (dataPtr.ptr + dataPtr.numOfElements) };
 			this->newElementPtr = bOutOfRange ? nullptr : this->newElementPtr;
 
 			this->bNeedSort = true;

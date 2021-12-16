@@ -5,7 +5,7 @@ export module UACEScript;
 import UACEArray;
 import UACEScriptLoader;
 import UACEScriptDecoder;
-import UACEUnifiedBlockAllocator;
+import UACEAllocator;
 
 import UACEScriptBasic;
 
@@ -24,7 +24,7 @@ export namespace UACE::Script
 			UACE::Containers::Array<int, SCRIPT_DATA_BYTES, Alloc>* inStructData, Alloc* alloc)
 			: funcData(dataPtr_t<Alloc>(nullptr, nullptr)), structData(inStructData), alloc(alloc)
 		{
-			this->funcData = this->alloc->create_unique<UACE::Containers::Array<int, SCRIPT_DATA_BYTES, Alloc>>(alloc);
+			this->funcData = this->alloc->createUnique<UACE::Containers::Array<int, SCRIPT_DATA_BYTES, Alloc>>(alloc);
 			*this->funcData.ptr = inFuncData->copy();
 			this->funcData.allocPtr = alloc;
 		}
@@ -81,7 +81,7 @@ export namespace UACE::Script
 		UACE::Containers::Array<int, SCRIPT_DATA_BYTES, Alloc>* structData{ nullptr };
 	};
 
-	template<typename Alloc>
+	template<UACE::MemManager::Allocator Alloc>
 	class Prototype
 	{
 
@@ -103,7 +103,7 @@ export namespace UACE::Script
 
 		auto createInstance()
 		{
-			return this->alloc->create_unique<Instance<Alloc>>(this->scriptData.funcDataPtr.ptr, this->scriptData.structDataPtr.ptr, this->alloc);
+			return this->alloc->createUnique<Instance<Alloc>>(this->scriptData.funcDataPtr.ptr, this->scriptData.structDataPtr.ptr, this->alloc);
 		}
 
 	private:

@@ -2,12 +2,12 @@ module;
 #include <cstdlib>
 export module UACEArray;
 
-import UACEUnifiedBlockAllocator;
+import UACEAllocator;
 
 export namespace UACE::Containers
 {
 
-	template<typename T, size_t capacity, typename Alloc>
+	template<typename T, size_t capacity, UACE::MemManager::Allocator Alloc>
 	class Array
 	{
 
@@ -15,7 +15,7 @@ export namespace UACE::Containers
 //		explicit Array()
 //		{}
 		explicit Array(Alloc* alloc) : alloc(alloc),
-			dataPtr(alloc->create_raw<T>(capacity))
+			dataPtr(alloc->createRaw<T>(capacity))
 		{}
 		
 		Array copy()
@@ -59,7 +59,7 @@ export namespace UACE::Containers
 		void clear()
 		{
 
-			memset(this->dataPtr.ptr, 0, this->dataPtr.size);
+			memset(this->dataPtr.ptr, 0, this->dataPtr.numOfElements);
 
 		}
 		void reset()

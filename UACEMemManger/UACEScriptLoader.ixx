@@ -8,7 +8,7 @@ import UACEScriptDecoder;
 export namespace UACE::Script
 {
 
-	template<typename Alloc>
+	template<UACE::MemManager::Allocator Alloc>
 	auto loadFromFile(std::string_view filename, Alloc* alloc)
 	{
 

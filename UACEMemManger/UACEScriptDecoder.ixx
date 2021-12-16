@@ -3,7 +3,7 @@ module;
 export module UACEScriptDecoder;
 
 import UACEArray;
-import UACEUnifiedBlockAllocator;
+import UACEAllocator;
 
 import UACEBasicScriptFuncs;
 
@@ -12,7 +12,7 @@ import UACEScriptBasic;
 export namespace UACE::Script
 {
 
-	template <typename Alloc>
+	template <UACE::MemManager::Allocator Alloc>
 	class Decoder
 	{
 
@@ -55,7 +55,7 @@ export namespace UACE::Script
 			point += 4;
 			const auto numOfFuncDataBytes{ funcDataLen * 4 };
 
-			auto funcData{ this->alloc->create_unique <
+			auto funcData{ this->alloc->createUnique <
 				UACE::Containers::Array<int, 100, Alloc>>(this->alloc) };
 			funcData->resize(funcDataLen);
 			memcpy(funcData->data(), point, numOfFuncDataBytes);
@@ -67,7 +67,7 @@ export namespace UACE::Script
 			point += 4;
 			const auto numOfSctructDataBytes{ structDataLen * 4 };
 
-			auto structData{ this->alloc->create_unique <
+			auto structData{ this->alloc->createUnique <
 				UACE::Containers::Array<int, 100, Alloc>>(this->alloc) };
 			structData->resize(structDataLen);
 			memcpy(structData->data(), point, numOfSctructDataBytes);

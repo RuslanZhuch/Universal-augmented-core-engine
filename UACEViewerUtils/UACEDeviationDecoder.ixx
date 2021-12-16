@@ -10,6 +10,7 @@ import UACEClient;
 import UACEJsonCoder;
 import UACEDeviationLogger;
 import UACEViewerUtils;
+import UACEAllocator;
 import MemoryManagerCommon;
 
 using namespace UACE::MemManager::Literals;
@@ -60,7 +61,7 @@ export namespace UACE::Deviation
 export namespace UACE
 {
 
-	template <UACE::Deviation::DeviationDesc DevDesc, typename Alloc>
+	template <UACE::Deviation::DeviationDesc DevDesc, UACE::MemManager::Allocator Alloc>
 	class DeviationDecoder
 	{
 

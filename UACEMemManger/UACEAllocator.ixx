@@ -18,11 +18,11 @@ export namespace UACE::MemManager
 		{alloc.getIsValid()} -> std::convertible_to<bool>;
 	};
 
-	template <typename T, AllocatorWeak Alloc>
+	template <typename T, typename Alloc>
 	struct Ptr
 	{
 
-		size_t size{ 0 };
+		size_t numOfElements{ 0 };
 		T* ptr{ nullptr };
 		Alloc* allocPtr{ nullptr };
 
@@ -37,23 +37,23 @@ export namespace UACE::MemManager
 
 		Ptr() = delete;
 		Ptr(T* ptr, Alloc* allocPtr)
-			:ptr(ptr), allocPtr(allocPtr), size(sizeof(T)* (allocPtr != nullptr))
+			:ptr(ptr), allocPtr(allocPtr), numOfElements(1 * (allocPtr != nullptr))
 		{}
-		Ptr(T* ptr, Alloc* allocPtr, size_t size)
-			:ptr(ptr), allocPtr(allocPtr), size(size)
+		Ptr(T* ptr, Alloc* allocPtr, size_t numOfElements)
+			:ptr(ptr), allocPtr(allocPtr), numOfElements(numOfElements)
 		{}
 
 		Ptr(Ptr&& other) noexcept
 			: ptr(std::exchange(other.ptr, nullptr)),
 			allocPtr(std::exchange(other.allocPtr, nullptr)),
-			size(std::exchange(other.size, 0))
+			numOfElements(std::exchange(other.numOfElements, 0))
 		{}
 
 		Ptr& operator=(Ptr&& other) noexcept
 		{
 			std::swap(this->ptr, other.ptr);
 			std::swap(this->allocPtr, other.allocPtr);
-			std::swap(this->size, other.size);
+			std::swap(this->numOfElements, other.numOfElements);
 			return *this;
 		}
 
@@ -69,11 +69,64 @@ export namespace UACE::MemManager
 		{
 			if (this->ptr != nullptr)
 			{
-				this->allocPtr->dealloc(reinterpret_cast<char*>(ptr), this->size);
+				this->allocPtr->free(this->ptr, this->numOfElements);
 				this->ptr = nullptr;
 			}
 		}
 
+	};
+
+	template <typename Alloc>
+	class AllocatorBase
+	{
+
+	public:
+		AllocatorBase(MemManager::MemSize size, char* dataPtr)
+		{
+
+		}
+
+		constexpr auto getIsValid() const { return static_cast<const Alloc*>(this)->getIsValidImpl(); }
+
+		template <typename T, typename ... Args>
+		Ptr<T, Alloc> createUnique(Args && ... args)
+		{
+			return static_cast<Alloc*>(this)->template createUniqueImpl<T>(std::forward<Args>(args)...);
+		}
+
+		template<typename T = char>
+		Ptr<T, Alloc> createRaw(int numOfEls)
+		{
+			return static_cast<Alloc*>(this)->createRawImpl<T>(numOfEls);
+		}
+		template <typename T, typename ... Args>
+		T* create(Args && ... args)
+		{
+			return static_cast<Alloc*>(this)->template createImpl<T>(std::forward<Args>(args)...);
+		}
+		template <typename T>
+		void free(T* ptr, size_t numOfElements = 1)
+		{
+			static_cast<Alloc*>(this)->freeImpl(ptr, numOfElements);
+		}
+
+		template <typename T>
+		Ptr<T, Alloc> makeUnique(T* ptr)
+		{
+			return static_cast<Alloc*>(this)->makeUniqueImpl(ptr);
+		}
+
+		char* getPtr()
+		{
+			return static_cast<Alloc*>(this)->getPtrImpl();
+		}
+
+	};
+
+	template<typename T>
+	concept Allocator = requires(T && t)
+	{
+		requires std::derived_from<T, AllocatorBase<T>>;
 	};
 
 };

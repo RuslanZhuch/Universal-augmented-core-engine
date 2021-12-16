@@ -11,14 +11,14 @@ module;
 export module UACEClient;
 
 //For Ptr
-import UACEUnifiedBlockAllocator;
+import UACEAllocator;
 import UACERingBuffer;
 
 using namespace UACE::MemManager::Literals;
 export namespace UACE
 {
 
-	template<typename Alloc>
+	template<UACE::MemManager::Allocator Alloc>
 	class Client
 	{
 

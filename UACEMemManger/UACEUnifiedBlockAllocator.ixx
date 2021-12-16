@@ -18,7 +18,7 @@ export namespace UACE::MemManager::UnifiedBlockAllocator
 	{
 
 	public:
-		void dealloc(char* ptr, UACE::MemManager::MemSize size)
+		void deallocMem(char* ptr, UACE::MemManager::MemSize size)
 		{
 
 			std::lock_guard lg(this->m);
@@ -67,9 +67,6 @@ export namespace UACE::MemManager::UnifiedBlockAllocator
 
 		}
 
-		char* getPtr() noexcept { return this->ptr; }
-
-	public:
 		void init(char* dataPtr, MemManager::MemSize size)
 		{
 			this->ptr = dataPtr;
@@ -104,6 +101,7 @@ export namespace UACE::MemManager::UnifiedBlockAllocator
 
 		}
 
+	protected:
 		auto findLowerBound(auto& range, auto val)
 		{
 
@@ -148,20 +146,28 @@ export namespace UACE::MemManager::UnifiedBlockAllocator
 
 	};
 
-	class UnifiedBlockAllocator : public UnifiedBlockLogic
+	class UnifiedBlockAllocator : public UACE::MemManager::AllocatorBase<UnifiedBlockAllocator>, 
+		private UnifiedBlockLogic
 	{
 
 	public:
 		UnifiedBlockAllocator(MemManager::MemSize size, char* dataPtr) 
-			: size(size)
+			: AllocatorBase(size, dataPtr), size(size)
 		{
 			this->init(dataPtr, size);
 		}
 
-		constexpr auto getIsValid() const { return size > 0; }
+	private:
+
+		void dealloc(char* ptr, UACE::MemManager::MemSize size)
+		{
+			this->deallocMem(ptr, size);
+		}
+
+		constexpr auto getIsValidImpl() const { return this->size > 0; }
 
 		template <typename T, typename ... Args>
-		Ptr<T, UnifiedBlockAllocator> create_unique(Args && ... args)
+		Ptr<T, UnifiedBlockAllocator> createUniqueImpl(Args && ... args)
 		{
 			const auto needSize{ sizeof(T) };
 			char* allowedPtr{ this->requestMemory(needSize) };
@@ -176,7 +182,7 @@ export namespace UACE::MemManager::UnifiedBlockAllocator
 		}
 
 		template<typename T = char>
-		Ptr<T, UnifiedBlockAllocator> create_raw(int numOfEls)
+		Ptr<T, UnifiedBlockAllocator> createRawImpl(int numOfEls)
 		{
 			const auto numOfBytes{ numOfEls * sizeof(T) };
 			char* allowedPtr{ this->requestMemory(numOfBytes) };
@@ -187,7 +193,7 @@ export namespace UACE::MemManager::UnifiedBlockAllocator
 			return Ptr<T, UnifiedBlockAllocator>(reinterpret_cast<T*>(allowedPtr), this, numOfEls);
 		}
 		template <typename T, typename ... Args>
-		T* create(Args && ... args)
+		T* createImpl(Args && ... args)
 		{
 			const auto needSize{ sizeof(T) };
 			char* allowedPtr{ this->requestMemory(needSize) };
@@ -200,19 +206,22 @@ export namespace UACE::MemManager::UnifiedBlockAllocator
 			return ptr;
 		}
 		template <typename T>
-		void free(T* ptr)
+		void freeImpl(T* ptr, size_t numOfElements)
 		{
-			const auto sizeToDealloc{ sizeof(T) };
+			const auto sizeToDealloc{ sizeof(T) * numOfElements };
 			this->dealloc(reinterpret_cast<char*>(ptr), sizeToDealloc);
 		}
 
 		template <typename T>
-		Ptr<T, UnifiedBlockAllocator> make_unique(T* ptr)
+		Ptr<T, UnifiedBlockAllocator> makeUniqueImpl(T* ptr)
 		{
 			return Ptr<T, UnifiedBlockAllocator>(ptr, this);
 		}
 
+		char* getPtrImpl() { return this->ptr; }
+
 	private:
+		friend UACE::MemManager::AllocatorBase<UnifiedBlockAllocator>;
 
 	private:
 		MemManager::MemSize size{ 0 };

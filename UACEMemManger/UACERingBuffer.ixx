@@ -3,21 +3,21 @@ module;
 #include <type_traits>
 export module UACERingBuffer;
 
-export import UACEUnifiedBlockAllocator;
+export import UACEAllocator;
 
 constexpr size_t HEADER_SIZE{ sizeof(size_t) };
 
 export namespace UACE
 {
 
-	template <size_t capacity, typename Alloc, typename T = char>
+	template <size_t capacity, UACE::MemManager::Allocator Alloc, typename T = char>
 	class RingBuffer
 	{
 
 	public:
 		explicit RingBuffer(Alloc* alloc)
 			:alloc(alloc), 
-			dataPtr(alloc->create_raw<T>(capacity)), 
+			dataPtr(alloc->createRaw<T>(capacity)), 
 			freespaceLeft(capacity - HEADER_SIZE)
 		{
 			static_assert(capacity > HEADER_SIZE);

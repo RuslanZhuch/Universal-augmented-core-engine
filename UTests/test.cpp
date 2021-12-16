@@ -193,9 +193,9 @@ TEST(MemManager, UnifiedBlockLogic)
 		EXPECT_EQ(pCenter, buffer + 5_b);
 		char* pRight{ ubLogic.requestMemory(5_b) };
 		EXPECT_EQ(pRight, buffer + 10_b);
-		ubLogic.dealloc(pRight, 5_b);
-		ubLogic.dealloc(pCenter, 5_b);
-		ubLogic.dealloc(pLeft, 5_b);
+		ubLogic.deallocMem(pRight, 5_b);
+		ubLogic.deallocMem(pCenter, 5_b);
+		ubLogic.deallocMem(pLeft, 5_b);
 	}
 	{
 		char* pLeft{ ubLogic.requestMemory(5_b) };
@@ -204,15 +204,15 @@ TEST(MemManager, UnifiedBlockLogic)
 		EXPECT_EQ(pCenter, buffer + 5_b);
 		char* pRight{ ubLogic.requestMemory(5_b) };
 		EXPECT_EQ(pRight, buffer + 10_b);
-		ubLogic.dealloc(pLeft, 5_b);
-		ubLogic.dealloc(pRight, 5_b);
+		ubLogic.deallocMem(pLeft, 5_b);
+		ubLogic.deallocMem(pRight, 5_b);
 		pLeft = ubLogic.requestMemory(5_b);
 		EXPECT_EQ(pLeft, buffer);
 		pRight = ubLogic.requestMemory(5_b);
 		EXPECT_EQ(pRight, buffer + 10_b);
-		ubLogic.dealloc(pRight, 5_b);
-		ubLogic.dealloc(pCenter, 5_b);
-		ubLogic.dealloc(pLeft, 5_b);
+		ubLogic.deallocMem(pRight, 5_b);
+		ubLogic.deallocMem(pCenter, 5_b);
+		ubLogic.deallocMem(pLeft, 5_b);
 	}
 	{
 		char* pLeft{ ubLogic.requestMemory(5_b) };
@@ -222,15 +222,15 @@ TEST(MemManager, UnifiedBlockLogic)
 		char* pRight{ ubLogic.requestMemory(5_b) };
 		EXPECT_EQ(pRight, buffer + 10_b);
 
-		ubLogic.dealloc(pLeft, 5_b);
-		ubLogic.dealloc(pCenter, 5_b);
+		ubLogic.deallocMem(pLeft, 5_b);
+		ubLogic.deallocMem(pCenter, 5_b);
 		pLeft = ubLogic.requestMemory(5_b);
 		EXPECT_EQ(pLeft, buffer);
 		pCenter = ubLogic.requestMemory(5_b);
 		EXPECT_EQ(pCenter, buffer + 5_b);
-		ubLogic.dealloc(pRight, 5_b);
-		ubLogic.dealloc(pCenter, 5_b);
-		ubLogic.dealloc(pLeft, 5_b);
+		ubLogic.deallocMem(pRight, 5_b);
+		ubLogic.deallocMem(pCenter, 5_b);
+		ubLogic.deallocMem(pLeft, 5_b);
 	}
 	{
 		char* pLeft{ ubLogic.requestMemory(5_b) };
@@ -240,12 +240,12 @@ TEST(MemManager, UnifiedBlockLogic)
 		char* pRight{ ubLogic.requestMemory(5_b) };
 		EXPECT_EQ(pRight, buffer + 10_b);
 
-		ubLogic.dealloc(pCenter, 5_b);
+		ubLogic.deallocMem(pCenter, 5_b);
 		pCenter = ubLogic.requestMemory(5_b);
 		EXPECT_EQ(pCenter, buffer + 5_b);
-		ubLogic.dealloc(pRight, 5_b);
-		ubLogic.dealloc(pCenter, 5_b);
-		ubLogic.dealloc(pLeft, 5_b);
+		ubLogic.deallocMem(pRight, 5_b);
+		ubLogic.deallocMem(pCenter, 5_b);
+		ubLogic.deallocMem(pLeft, 5_b);
 	}
 
 }
@@ -279,7 +279,7 @@ TEST(MemManger, UnifiedBlockAlloc)
 		int data2{ 30 };
 		int data3{ 40 };
 	};
-	auto obj0{ ubAlloc.create_unique<Obj0>() };
+	auto obj0{ ubAlloc.createUnique<Obj0>() };
 	EXPECT_EQ(obj0.allocPtr, &ubAlloc);
 	EXPECT_NE(obj0.ptr, nullptr);
 	EXPECT_EQ(obj0->data0, 10);
@@ -295,7 +295,7 @@ TEST(MemManger, UnifiedBlockAlloc)
 		}
 		int data{ 24 };
 	}; 
-	auto obj1{ ubAlloc.create_unique<Obj1>(34) };
+	auto obj1{ ubAlloc.createUnique<Obj1>(34) };
 	EXPECT_TRUE(obj1.ptr != nullptr);
 	EXPECT_EQ(obj1->data, 34);
 
@@ -306,13 +306,13 @@ TEST(MemManger, UnifiedBlockAlloc)
 
 	upa::UnifiedBlockAllocator ubAlloc3{ upa::createAllocator(domain, 15_b) };
 	EXPECT_TRUE(ubAlloc3.getIsValid());
-	auto obj3Left{ ubAlloc3.create_unique<std::array<char, 5_b>>() };
+	auto obj3Left{ ubAlloc3.createUnique<std::array<char, 5_b>>() };
 	EXPECT_TRUE(obj3Left.ptr != nullptr);
-	auto obj3Mid{ ubAlloc3.create_unique<std::array<char, 5_b>>() };
+	auto obj3Mid{ ubAlloc3.createUnique<std::array<char, 5_b>>() };
 	EXPECT_TRUE(obj3Mid.ptr != nullptr);
-	auto obj3Right{ ubAlloc3.create_unique<std::array<char, 5_b>>() };
+	auto obj3Right{ ubAlloc3.createUnique<std::array<char, 5_b>>() };
 	EXPECT_TRUE(obj3Right.ptr != nullptr);
-	auto obj3Failed{ ubAlloc3.create_unique<std::array<char, 5_b>>() };
+	auto obj3Failed{ ubAlloc3.createUnique<std::array<char, 5_b>>() };
 	EXPECT_TRUE(obj3Failed.ptr == nullptr);
 	EXPECT_TRUE(obj3Failed.allocPtr == nullptr);
 
@@ -335,7 +335,7 @@ TEST(MemManger, UnifiedBlockAlloc)
 	EXPECT_EQ(reinterpret_cast<char*>(objPtrNew), domain->getMemoryPointer());
 
 	{
-		auto unique{ ubAlloc.make_unique(objPtrNew) };
+		auto unique{ ubAlloc.makeUnique(objPtrNew) };
 		EXPECT_EQ(unique->data, 404);
 	}
 	Obj1* objPtrNew2{ ubAlloc.create<Obj1>(808) };
@@ -345,10 +345,10 @@ TEST(MemManger, UnifiedBlockAlloc)
 
 	char* rawDataPtr{ nullptr };
 	{
-		auto blobData{ ubAlloc.create_raw(64_b) };
+		auto blobData{ ubAlloc.createRaw(64_b) };
 		rawDataPtr = blobData.ptr;
 		EXPECT_NE(rawDataPtr, nullptr);
-		EXPECT_EQ(blobData.size, 64_b);
+		EXPECT_EQ(blobData.numOfElements, 64_b);
 	}
 
 	Obj1* objPtrNew3{ ubAlloc.create<Obj1>(909) };
@@ -357,7 +357,7 @@ TEST(MemManger, UnifiedBlockAlloc)
 	EXPECT_EQ(reinterpret_cast<char*>(objPtrNew3), rawDataPtr);
 
 //	{
-//		auto objProto{ ubAlloc.create_unique<Obj1>(102) };
+//		auto objProto{ ubAlloc.createUnique<Obj1>(102) };
 //		EXPECT_EQ(reinterpret_cast<char*>(objProto.ptr), rawDataPtr + sizeof(Obj1));
 //		EXPECT_EQ(objProto->data, 102);
 //		auto objInstance{ objProto->deepCopy() };
@@ -621,7 +621,7 @@ TEST(Containers, Array)
 	}
 
 	{
-		auto intPtr{ ubAlloc.create_unique<int>() };
+		auto intPtr{ ubAlloc.createUnique<int>() };
 		EXPECT_EQ((char*)intPtr.ptr, domain->getMemoryPointer());
 	}
 

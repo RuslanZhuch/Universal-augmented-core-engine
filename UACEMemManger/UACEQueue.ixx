@@ -67,7 +67,7 @@ export namespace UACE::UTILS
 
 			if (this->numOfElements == 0)
 			{
-				return this->allocator->make_unique<T>(nullptr);
+				return this->allocator->makeUnique<T>(nullptr);
 			}
 
 			auto node{ this->head };
@@ -80,7 +80,7 @@ export namespace UACE::UTILS
 			this->numOfElements--;
 			this->firstBufferIndex++;
 			this->bIsEmpty = (this->numOfElements == 0);
-			return this->allocator->make_unique(outData);
+			return this->allocator->makeUnique(outData);
 
 		}
 
