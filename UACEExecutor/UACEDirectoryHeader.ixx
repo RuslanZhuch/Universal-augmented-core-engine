@@ -11,6 +11,11 @@ import UACEArray;
 export namespace UACE::Map
 {
 
+	namespace DirectoryHeaderUtils
+	{
+		constexpr uint32_t NotFound = std::numeric_limits<uint32_t>::max();
+	};
+
 	template <UACE::MemManager::Allocator Alloc>
 	class DirectoryHeader
 	{
@@ -21,6 +26,7 @@ export namespace UACE::Map
 			uint32_t point{};
 		};
 
+
 	public:
 		explicit DirectoryHeader(Alloc* alloc, uint32_t numOfElements) 
 			: dataPtr(alloc->createRaw<Element>(numOfElements))
@@ -28,7 +34,7 @@ export namespace UACE::Map
 
 			this->maxElements = this->dataPtr.numOfElements;
 
-			this->newElementPtr = this->dataPtr.ptr;
+			this->clear();
 
 		}
 
@@ -71,7 +77,7 @@ export namespace UACE::Map
 					return currElement->point;
 			}
 
-			return std::numeric_limits<uint32_t>::max();
+			return DirectoryHeaderUtils::NotFound;
 
 		}
 

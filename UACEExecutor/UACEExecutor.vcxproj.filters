@@ -9,5 +9,8 @@
     <ClCompile Include="UACEDirectoryHeader.ixx">
       <Filter>Lib</Filter>
     </ClCompile>
+    <ClCompile Include="UACEStaticMeshHeader.ixx">
+      <Filter>Lib</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

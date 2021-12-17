@@ -81,11 +81,6 @@ export namespace UACE::MemManager
 	{
 
 	public:
-		AllocatorBase(MemManager::MemSize size, char* dataPtr)
-		{
-
-		}
-
 		constexpr auto getIsValid() const { return static_cast<const Alloc*>(this)->getIsValidImpl(); }
 
 		template <typename T, typename ... Args>

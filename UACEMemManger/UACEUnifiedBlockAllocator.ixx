@@ -152,7 +152,7 @@ export namespace UACE::MemManager::UnifiedBlockAllocator
 
 	public:
 		UnifiedBlockAllocator(MemManager::MemSize size, char* dataPtr) 
-			: AllocatorBase(size, dataPtr), size(size)
+			: size(size)
 		{
 			this->init(dataPtr, size);
 		}
