@@ -1,9 +1,7 @@
 module;
 #include <array>
-#include <ranges>
 #include <limits>
 #include <algorithm>
-#include <mutex>
 
 export module UACEUnifiedBlockAllocator;
 export import MemoryManagerCommon;
@@ -18,10 +16,8 @@ export namespace UACE::MemManager::UnifiedBlockAllocator
 	{
 
 	public:
-		void deallocMem(char* ptr, UACE::MemManager::MemSize size)
+		constexpr void deallocMem(char* ptr, UACE::MemManager::MemSize size)
 		{
-
-			std::lock_guard lg(this->m);
 
 			const UACE::MemManager::MemSize currOffset{ static_cast<UACE::MemManager::MemSize>(ptr - this->ptr) };
 			auto totalSegmentSize{ size };
@@ -67,21 +63,25 @@ export namespace UACE::MemManager::UnifiedBlockAllocator
 
 		}
 
-		void init(char* dataPtr, MemManager::MemSize size)
+		void constexpr init(char* dataPtr, MemManager::MemSize size)
 		{
 			this->ptr = dataPtr;
 			this->aLens.front() = size;
 		}
 
-		[[nodiscard]] char* requestMemory(MemManager::MemSize size)
+		[[nodiscard]] constexpr char* requestMemory(MemManager::MemSize size)
 		{
 
-			std::lock_guard lg(this->m);
-
-			const auto fLen{ std::ranges::find_if(this->aLens, [this, size](MemManager::MemSize& len)
+			//Would not compile if requestMemody is constexpr in vs2022 std:c++latest (20.12.2021)
+//			const auto fLen{ std::ranges::find_if(this->aLens, [this, size](MemManager::MemSize& len)
+//			{
+//				return len >= size;
+//			}) };
+			const auto fLen{ std::find_if(this->aLens.begin(), this->aLens.end(), [this, size](MemManager::MemSize& len)
 			{
 				return len >= size;
 			}) };
+
 			if (fLen == this->aLens.end())
 			{
 				return nullptr;
@@ -102,7 +102,7 @@ export namespace UACE::MemManager::UnifiedBlockAllocator
 		}
 
 	protected:
-		[[nodiscard]] auto findLowerBound(auto& range, auto val)
+		[[nodiscard]] constexpr auto findLowerBound(auto& range, auto val)
 		{
 
 			auto currBound{ std::numeric_limits<decltype(val)>::max() };
@@ -118,7 +118,7 @@ export namespace UACE::MemManager::UnifiedBlockAllocator
 			}
 			return outIter;
 		}
-		[[nodiscard]] auto findUpperBound(auto& range, auto val)
+		[[nodiscard]] constexpr auto findUpperBound(auto& range, auto val)
 		{
 
 			auto currBound{ std::numeric_limits<decltype(val)>::min() };
@@ -142,8 +142,6 @@ export namespace UACE::MemManager::UnifiedBlockAllocator
 		std::array<MemManager::MemSize, 32> aLens{};
 		std::array<MemManager::MemSize, 32> aPtrOffset{};
 
-		std::mutex m;
-
 	};
 
 	class UnifiedBlockAllocator : public UACE::MemManager::AllocatorBase<UnifiedBlockAllocator>, 
@@ -151,7 +149,7 @@ export namespace UACE::MemManager::UnifiedBlockAllocator
 	{
 
 	public:
-		UnifiedBlockAllocator(MemManager::MemSize size, char* dataPtr) 
+		constexpr UnifiedBlockAllocator(MemManager::MemSize size, char* dataPtr) 
 			: size(size)
 		{
 			this->init(dataPtr, size);
@@ -159,7 +157,7 @@ export namespace UACE::MemManager::UnifiedBlockAllocator
 
 	private:
 
-		void dealloc(char* ptr, UACE::MemManager::MemSize size)
+		constexpr void dealloc(char* ptr, UACE::MemManager::MemSize size)
 		{
 			this->deallocMem(ptr, size);
 		}
@@ -167,7 +165,7 @@ export namespace UACE::MemManager::UnifiedBlockAllocator
 		constexpr auto getIsValidImpl() const { return this->size > 0; }
 
 		template <typename T, typename ... Args>
-		[[nodiscard]] Ptr<T, UnifiedBlockAllocator> createUniqueImpl(Args && ... args)
+		[[nodiscard]] constexpr Ptr<T, UnifiedBlockAllocator> createUniqueImpl(Args && ... args)
 		{
 			const auto needSize{ sizeof(T) };
 			char* allowedPtr{ this->requestMemory(needSize) };
@@ -182,7 +180,7 @@ export namespace UACE::MemManager::UnifiedBlockAllocator
 		}
 
 		template<typename T = char>
-		[[nodiscard]] Ptr<T, UnifiedBlockAllocator> createRawImpl(int numOfEls)
+		[[nodiscard]] constexpr Ptr<T, UnifiedBlockAllocator> createRawImpl(int numOfEls)
 		{
 			const auto numOfBytes{ numOfEls * sizeof(T) };
 			char* allowedPtr{ this->requestMemory(numOfBytes) };
@@ -193,7 +191,7 @@ export namespace UACE::MemManager::UnifiedBlockAllocator
 			return Ptr<T, UnifiedBlockAllocator>(reinterpret_cast<T*>(allowedPtr), this, numOfEls);
 		}
 		template <typename T, typename ... Args>
-		[[nodiscard]] T* createImpl(Args && ... args)
+		[[nodiscard]] constexpr T* createImpl(Args && ... args)
 		{
 			const auto needSize{ sizeof(T) };
 			char* allowedPtr{ this->requestMemory(needSize) };
@@ -206,19 +204,19 @@ export namespace UACE::MemManager::UnifiedBlockAllocator
 			return ptr;
 		}
 		template <typename T>
-		void freeImpl(T* ptr, size_t numOfElements)
+		void constexpr freeImpl(T* ptr, size_t numOfElements)
 		{
 			const auto sizeToDealloc{ sizeof(T) * numOfElements };
 			this->dealloc(reinterpret_cast<char*>(ptr), sizeToDealloc);
 		}
 
 		template <typename T>
-		[[nodiscard]] Ptr<T, UnifiedBlockAllocator> makeUniqueImpl(T* ptr)
+		[[nodiscard]] constexpr Ptr<T, UnifiedBlockAllocator> makeUniqueImpl(T* ptr)
 		{
 			return Ptr<T, UnifiedBlockAllocator>(ptr, this);
 		}
 
-		[[nodiscard]] char* getPtrImpl() { return this->ptr; }
+		[[nodiscard]] constexpr char* getPtrImpl() { return this->ptr; }
 
 	private:
 		friend UACE::MemManager::AllocatorBase<UnifiedBlockAllocator>;
@@ -228,7 +226,7 @@ export namespace UACE::MemManager::UnifiedBlockAllocator
 
 	};
 
-	UnifiedBlockAllocator createAllocator(Domain* domain, MemManager::MemSize size)
+	UnifiedBlockAllocator constexpr createAllocator(Domain* domain, MemManager::MemSize size)
 	{
 
 		const auto reservedSize{ domain->reserveMemory(size) };
@@ -244,4 +242,4 @@ export namespace UACE::MemManager::UnifiedBlockAllocator
 
 	}
 
-}
+};

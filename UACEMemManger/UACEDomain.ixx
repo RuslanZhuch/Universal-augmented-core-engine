@@ -16,9 +16,9 @@ export namespace UACE::MemManager
 
 	public:
 
-		Domain() = default;
+		constexpr Domain() = default;
 
-		Domain(MemSize size, MemSize offset, char* rootPtr)
+		constexpr Domain(MemSize size, MemSize offset, char* rootPtr)
 			: size(size), offset(offset), freeSpace(size), rootPtr(rootPtr)
 		{
 		}
@@ -27,7 +27,7 @@ export namespace UACE::MemManager
 		[[nodiscard]] constexpr auto getSize() const noexcept { return this->size; }
 		[[nodiscard]] constexpr auto getFreeSpace() const noexcept { return this->freeSpace; }
 
-		[[nodiscard]] MemSize reserveMemory(MemSize size)
+		[[nodiscard]] constexpr MemSize reserveMemory(MemSize size)
 		{
 			
 			constexpr MemSize minMemBlock = 16_b;
@@ -50,7 +50,7 @@ export namespace UACE::MemManager
 
 		}
 
-		[[nodiscard]] char* getMemoryPointer() const noexcept
+		[[nodiscard]] constexpr char* getMemoryPointer() const noexcept
 		{
 
 			const auto offset{ this->offset };
@@ -62,7 +62,7 @@ export namespace UACE::MemManager
 
 		}
 
-		void reset() noexcept
+		constexpr void reset() noexcept
 		{
 
 			this->freeSpace = this->size;

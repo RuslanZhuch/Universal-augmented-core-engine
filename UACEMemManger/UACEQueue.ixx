@@ -2,6 +2,7 @@ module;
 #include <array>
 #include <mutex>
 #include <atomic>
+#include <span>
 
 export module UACEQueue;
 
@@ -60,14 +61,16 @@ export namespace UACE::UTILS
 			this->bIsEmpty = false;
 			return true;
 		}
-		[[nodiscard]] auto pop()
+
+		[[nodiscard]] bool pop(std::span<char> outBuffer)
 		{
 
 			std::lock_guard gl(this->m);
 
-			if (this->numOfElements == 0)
+			const auto needSize{ sizeof(T) };
+			if ((this->numOfElements == 0) || (needSize > outBuffer.size()))
 			{
-				return this->allocator->makeUnique<T>(nullptr);
+				return false;
 			}
 
 			auto node{ this->head };
@@ -76,12 +79,15 @@ export namespace UACE::UTILS
 			auto outData{ node->val };
 			this->allocator->free(node);
 
-			const auto wrappedIndex{ this->computeWrappedIndex(this->firstBufferIndex) };
+			std::memcpy(outBuffer.data(), outData, needSize);
+			this->allocator->free(outData);
+
 			this->numOfElements--;
 			this->firstBufferIndex++;
 			this->bIsEmpty = (this->numOfElements == 0);
-			return this->allocator->makeUnique(outData);
-
+			
+			return true;
+			
 		}
 
 		[[nodiscard]] constexpr auto getIsEmpty() const noexcept { return this->bIsEmpty; }

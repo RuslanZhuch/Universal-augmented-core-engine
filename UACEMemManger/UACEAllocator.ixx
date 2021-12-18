@@ -26,30 +26,30 @@ export namespace UACE::MemManager
 		T* ptr{ nullptr };
 		Alloc* allocPtr{ nullptr };
 
-		[[nodiscard]] T* operator->()
+		[[nodiscard]] constexpr T* operator->()
 		{
 			return ptr;
 		}
-		[[nodiscard]] T operator*()
+		[[nodiscard]] constexpr T operator*()
 		{
 			return *ptr;
 		}
 
 		Ptr() = delete;
-		Ptr(T* ptr, Alloc* allocPtr)
+		constexpr Ptr(T* ptr, Alloc* allocPtr)
 			:ptr(ptr), allocPtr(allocPtr), numOfElements(1 * (allocPtr != nullptr))
 		{}
-		Ptr(T* ptr, Alloc* allocPtr, size_t numOfElements)
+		constexpr Ptr(T* ptr, Alloc* allocPtr, size_t numOfElements)
 			:ptr(ptr), allocPtr(allocPtr), numOfElements(numOfElements)
 		{}
 
-		Ptr(Ptr&& other) noexcept
+		constexpr Ptr(Ptr&& other) noexcept
 			: ptr(std::exchange(other.ptr, nullptr)),
 			allocPtr(std::exchange(other.allocPtr, nullptr)),
 			numOfElements(std::exchange(other.numOfElements, 0))
 		{}
 
-		Ptr& operator=(Ptr&& other) noexcept
+		constexpr Ptr& operator=(Ptr&& other) noexcept
 		{
 			std::swap(this->ptr, other.ptr);
 			std::swap(this->allocPtr, other.allocPtr);
@@ -57,7 +57,7 @@ export namespace UACE::MemManager
 			return *this;
 		}
 
-		~Ptr()
+		constexpr ~Ptr()
 		{
 			this->release();
 		}
@@ -65,7 +65,7 @@ export namespace UACE::MemManager
 		Ptr(const Ptr& other) = delete;
 		Ptr& operator=(const Ptr& other) = delete;
 
-		void release()
+		constexpr void release()
 		{
 			if (this->ptr != nullptr)
 			{
@@ -84,34 +84,34 @@ export namespace UACE::MemManager
 		[[nodiscard]] constexpr auto getIsValid() const { return static_cast<const Alloc*>(this)->getIsValidImpl(); }
 
 		template <typename T, typename ... Args>
-		[[nodiscard]] Ptr<T, Alloc> createUnique(Args && ... args)
+		[[nodiscard]] constexpr Ptr<T, Alloc> createUnique(Args && ... args)
 		{
 			return static_cast<Alloc*>(this)->template createUniqueImpl<T>(std::forward<Args>(args)...);
 		}
 
 		template<typename T = char>
-		[[nodiscard]] Ptr<T, Alloc> createRaw(int numOfEls)
+		[[nodiscard]] constexpr Ptr<T, Alloc> createRaw(int numOfEls)
 		{
 			return static_cast<Alloc*>(this)->createRawImpl<T>(numOfEls);
 		}
 		template <typename T, typename ... Args>
-		[[nodiscard]] T* create(Args && ... args)
+		[[nodiscard]] constexpr T* create(Args && ... args)
 		{
 			return static_cast<Alloc*>(this)->template createImpl<T>(std::forward<Args>(args)...);
 		}
 		template <typename T>
-		void free(T* ptr, size_t numOfElements = 1)
+		void constexpr free(T* ptr, size_t numOfElements = 1)
 		{
 			static_cast<Alloc*>(this)->freeImpl(ptr, numOfElements);
 		}
 
 		template <typename T>
-		[[nodiscard]] Ptr<T, Alloc> makeUnique(T* ptr)
+		[[nodiscard]] constexpr Ptr<T, Alloc> makeUnique(T* ptr)
 		{
 			return static_cast<Alloc*>(this)->makeUniqueImpl(ptr);
 		}
 
-		[[nodiscard]] char* getPtr()
+		[[nodiscard]] constexpr char* getPtr()
 		{
 			return static_cast<Alloc*>(this)->getPtrImpl();
 		}

@@ -181,10 +181,12 @@ TEST(MemManager, Domain)
 
 TEST(MemManager, UnifiedBlockLogic)
 {
-
-	char* buffer = new char[16_b];
+	std::array<char, 16_b> aBuffer{};
+	char* buffer = aBuffer.data();
 
 	UACE::MemManager::UnifiedBlockAllocator::UnifiedBlockLogic ubLogic;
+
+
 	ubLogic.init(buffer, 16_b);
 	{
 		char* pLeft{ ubLogic.requestMemory(5_b) };
@@ -390,41 +392,40 @@ TEST(Utils, Queue)
 	UACE::UTILS::Queue<int, 4> queue(&ubAlloc);
 	EXPECT_EQ(queue.getMaxEls(), 4);
 
-	{
+	std::array<char, 32_b> aOut{};
+	int outVal{ 0 };
 
+	{
 		EXPECT_TRUE(queue.getIsEmpty());
-		auto vOut{ queue.pop() };
-		EXPECT_EQ(vOut.ptr, nullptr);
+		EXPECT_FALSE(queue.pop(aOut));
 	}
 
 	EXPECT_TRUE(queue.push(65));
 	EXPECT_FALSE(queue.getIsEmpty());
 	{
-		auto vOut{ queue.pop() };
-		EXPECT_NE(vOut.ptr, nullptr);
-		EXPECT_EQ(*vOut, 65);
+		EXPECT_TRUE(queue.pop(aOut));
+		std::memcpy(&outVal, aOut.data(), sizeof(outVal));
+		EXPECT_EQ(outVal, 65);
 	}
 	{
 		EXPECT_TRUE(queue.getIsEmpty());
-		auto vOut{ queue.pop() };
-		EXPECT_EQ(vOut.ptr, nullptr);
+		EXPECT_FALSE(queue.pop(aOut));
 	}
 
 	EXPECT_TRUE(queue.push(122));
 	EXPECT_TRUE(queue.push(244));
 	{
-		auto vOut{ queue.pop() };
-		EXPECT_NE(vOut.ptr, nullptr);
-		EXPECT_EQ(*vOut, 122);
+		EXPECT_TRUE(queue.pop(aOut));
+		std::memcpy(&outVal, aOut.data(), sizeof(outVal));
+		EXPECT_EQ(outVal, 122);
 	} 
 	{
-		auto vOut{ queue.pop() };
-		EXPECT_NE(vOut.ptr, nullptr);
-		EXPECT_EQ(*vOut, 244);
+		EXPECT_TRUE(queue.pop(aOut));
+		std::memcpy(&outVal, aOut.data(), sizeof(outVal));
+		EXPECT_EQ(outVal, 244);
 	}
 	{
-		auto vOut{ queue.pop() };
-		EXPECT_EQ(vOut.ptr, nullptr);
+		EXPECT_FALSE(queue.pop(aOut));
 	}
 	EXPECT_TRUE(queue.push(301));
 	EXPECT_TRUE(queue.push(302));
@@ -433,28 +434,27 @@ TEST(Utils, Queue)
 	EXPECT_FALSE(queue.push(305));
 	EXPECT_FALSE(queue.getIsEmpty());
 	{
-		auto vOut{ queue.pop() };
-		EXPECT_NE(vOut.ptr, nullptr);
-		EXPECT_EQ(*vOut, 301);
+		EXPECT_TRUE(queue.pop(aOut));
+		std::memcpy(&outVal, aOut.data(), sizeof(outVal));
+		EXPECT_EQ(outVal, 301);
 	}
 	{
-		auto vOut{ queue.pop() };
-		EXPECT_NE(vOut.ptr, nullptr);
-		EXPECT_EQ(*vOut, 302);
+		EXPECT_TRUE(queue.pop(aOut));
+		std::memcpy(&outVal, aOut.data(), sizeof(outVal));
+		EXPECT_EQ(outVal, 302);
 	}
 	{
-		auto vOut{ queue.pop() };
-		EXPECT_NE(vOut.ptr, nullptr);
-		EXPECT_EQ(*vOut, 303);
+		EXPECT_TRUE(queue.pop(aOut));
+		std::memcpy(&outVal, aOut.data(), sizeof(outVal));
+		EXPECT_EQ(outVal, 303);
 	}
 	{
-		auto vOut{ queue.pop() };
-		EXPECT_NE(vOut.ptr, nullptr);
-		EXPECT_EQ(*vOut, 304);
+		EXPECT_TRUE(queue.pop(aOut));
+		std::memcpy(&outVal, aOut.data(), sizeof(outVal));
+		EXPECT_EQ(outVal, 304);
 	}
 	{
-		auto vOut{ queue.pop() };
-		EXPECT_EQ(vOut.ptr, nullptr);
+		EXPECT_FALSE(queue.pop(aOut));
 	}
 	EXPECT_TRUE(queue.getIsEmpty());
 
@@ -495,10 +495,13 @@ TEST(Utils, QueueMultithread)
 			{
 				continue;
 			}
-			auto outValPtr{ queue.pop() };
-			EXPECT_NE(outValPtr.ptr, nullptr);
+			std::array<char, 32_b> aOutVal{};
 
-			EXPECT_EQ(*outValPtr, currVal + 1);
+			EXPECT_TRUE(queue.pop(aOutVal));
+			int outVal{ 0 };
+			std::memcpy(&outVal, aOutVal.data(), sizeof(outVal));
+
+			EXPECT_EQ(outVal, currVal + 1);
 			currVal++;
 
 			if (currVal == 500)
@@ -508,7 +511,6 @@ TEST(Utils, QueueMultithread)
 			}
 
 		}
-		currVal = currVal;
 
 	});
 
