@@ -59,7 +59,7 @@ export namespace UACE
 
 		[[nodiscard]] auto getNumOfPkgs() const { return static_cast<int>(this->atNumOfPkgs.load()); }
 
-		size_t popPkg(char* destBuffer, size_t destBufferSize)
+		[[nodiscard]] size_t popPkg(char* destBuffer, size_t destBufferSize)
 		{
 			
 			if (this->atNumOfPkgs.load() == 0)
@@ -74,7 +74,7 @@ export namespace UACE
 		}
 
 	private:
-		bool read(auto& stoken, const auto& buffer, size_t transferSize)
+		[[nodiscard]] bool read(auto& stoken, const auto& buffer, size_t transferSize)
 		{
 			size_t bytesReaded{ 0 };
 			std::atomic_flag flComplete{};

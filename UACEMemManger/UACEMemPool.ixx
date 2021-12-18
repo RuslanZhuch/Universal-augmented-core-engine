@@ -29,11 +29,11 @@ export namespace UACE::MemManager
 
 		}
 
-		constexpr PoolSize getSize() const noexcept { return this->size; }
+		[[nodiscard]] constexpr PoolSize getSize() const noexcept { return this->size; }
 
-		constexpr char* getPtr() noexcept { return this->data; }
+		[[nodiscard]] constexpr char* getPtr() noexcept { return this->data; }
 
-		MemManager::Domain* createDomain(MemSize size)
+		[[nodiscard]] MemManager::Domain* createDomain(MemSize size)
 		{
 
 			const auto newDomainOffset{ this->totalDomainSize };

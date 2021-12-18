@@ -22,7 +22,7 @@ export namespace UACE
 		{
 		}
 
-		bool getObjectExist(size_t id)
+		[[nodiscard]] bool getObjectExist(size_t id)
 		{
 
 			const std::string_view query{ this->createStatement("SELECT Id FROM ObjectsList WHERE Id = '{}'", id) };
@@ -35,7 +35,7 @@ export namespace UACE
 
 		}
 
-		bool getObjectExistByHash(size_t hashName)
+		[[nodiscard]] bool getObjectExistByHash(size_t hashName)
 		{
 
 			const std::string_view query{ this->createStatement("SELECT Id FROM ObjectsList WHERE HashName = '{}'", hashName) };
@@ -48,7 +48,7 @@ export namespace UACE
 
 		}
 
-		size_t getObjectId(size_t hashName)
+		[[nodiscard]] size_t getObjectId(size_t hashName)
 		{
 
 			const std::string_view query{ this->createStatement("SELECT Id FROM ObjectsList WHERE HashName = '{}'", hashName) };
@@ -66,7 +66,7 @@ export namespace UACE
 
 		}
 
-		size_t getObjectHash(size_t objId)
+		[[nodiscard]] size_t getObjectHash(size_t objId)
 		{
 
 			const std::string_view query{ this->createStatement("SELECT HashName FROM ObjectsList WHERE Id = '{}'", objId) };
@@ -84,7 +84,7 @@ export namespace UACE
 
 		}
 
-		auto logNewObject(size_t hashName, size_t baseObjHashName)
+		[[nodiscard]] auto logNewObject(size_t hashName, size_t baseObjHashName)
 		{
 
 			const auto lastId{ this->getLastId() };
@@ -110,7 +110,7 @@ export namespace UACE
 
 		}
 
-		bool setObjectTransform(size_t objId, std::span<char> data)
+		[[nodiscard]] bool setObjectTransform(size_t objId, std::span<char> data)
 		{
 
 			const auto bExist{ this->getObjectExist(objId) };
@@ -132,7 +132,7 @@ export namespace UACE
 
 		}
 
-		bool getObjectTransform(size_t objId, std::span<char> data)
+		[[nodiscard]] bool getObjectTransform(size_t objId, std::span<char> data)
 		{
 
 			const std::string_view query{ this->createStatement("SELECT Transform FROM ObjectsCacheData WHERE Id = '{}'", objId) };
@@ -156,7 +156,7 @@ export namespace UACE
 
 		}
 
-		bool setObjectMesh(size_t objId, std::span<char> data)
+		[[nodiscard]] bool setObjectMesh(size_t objId, std::span<char> data)
 		{
 
 			const auto bExist{ this->getObjectExist(objId) };
@@ -178,7 +178,7 @@ export namespace UACE
 
 		}
 
-		bool getObjectMesh(size_t objId, std::span<char> data)
+		[[nodiscard]] bool getObjectMesh(size_t objId, std::span<char> data)
 		{
 
 			const std::string_view query{ this->createStatement("SELECT Mesh FROM ObjectsCacheData WHERE Id = '{}'", objId) };
@@ -243,11 +243,11 @@ export namespace UACE
 			}
 		}
 
-		bool getIsReady() const { return true; }
+		[[nodiscard]] bool getIsReady() const { return true; }
 
 	private:
 		template <typename ... _Type>
-		std::string_view createStatement(const std::string_view text, const _Type& ... args) const
+		[[nodiscard]] std::string_view createStatement(const std::string_view text, const _Type& ... args) const
 		{
 			const auto q = std::format_to_n(this->buffer, sizeof(this->buffer), text, args...);
 			if (q.size > sizeof(buffer))
@@ -256,7 +256,7 @@ export namespace UACE
 			return { this->buffer, q.out };
 		}
 
-		size_t getLastId()
+		[[nodiscard]] size_t getLastId()
 		{
 
 			const auto query{ this->createStatement("SELECT MAX(Id) FROM ObjectsList") };

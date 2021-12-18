@@ -73,7 +73,7 @@ export namespace UACE::MemManager::UnifiedBlockAllocator
 			this->aLens.front() = size;
 		}
 
-		char* requestMemory(MemManager::MemSize size) 
+		[[nodiscard]] char* requestMemory(MemManager::MemSize size)
 		{
 
 			std::lock_guard lg(this->m);
@@ -102,7 +102,7 @@ export namespace UACE::MemManager::UnifiedBlockAllocator
 		}
 
 	protected:
-		auto findLowerBound(auto& range, auto val)
+		[[nodiscard]] auto findLowerBound(auto& range, auto val)
 		{
 
 			auto currBound{ std::numeric_limits<decltype(val)>::max() };
@@ -118,7 +118,7 @@ export namespace UACE::MemManager::UnifiedBlockAllocator
 			}
 			return outIter;
 		}
-		auto findUpperBound(auto& range, auto val)
+		[[nodiscard]] auto findUpperBound(auto& range, auto val)
 		{
 
 			auto currBound{ std::numeric_limits<decltype(val)>::min() };
@@ -167,7 +167,7 @@ export namespace UACE::MemManager::UnifiedBlockAllocator
 		constexpr auto getIsValidImpl() const { return this->size > 0; }
 
 		template <typename T, typename ... Args>
-		Ptr<T, UnifiedBlockAllocator> createUniqueImpl(Args && ... args)
+		[[nodiscard]] Ptr<T, UnifiedBlockAllocator> createUniqueImpl(Args && ... args)
 		{
 			const auto needSize{ sizeof(T) };
 			char* allowedPtr{ this->requestMemory(needSize) };
@@ -182,7 +182,7 @@ export namespace UACE::MemManager::UnifiedBlockAllocator
 		}
 
 		template<typename T = char>
-		Ptr<T, UnifiedBlockAllocator> createRawImpl(int numOfEls)
+		[[nodiscard]] Ptr<T, UnifiedBlockAllocator> createRawImpl(int numOfEls)
 		{
 			const auto numOfBytes{ numOfEls * sizeof(T) };
 			char* allowedPtr{ this->requestMemory(numOfBytes) };
@@ -193,7 +193,7 @@ export namespace UACE::MemManager::UnifiedBlockAllocator
 			return Ptr<T, UnifiedBlockAllocator>(reinterpret_cast<T*>(allowedPtr), this, numOfEls);
 		}
 		template <typename T, typename ... Args>
-		T* createImpl(Args && ... args)
+		[[nodiscard]] T* createImpl(Args && ... args)
 		{
 			const auto needSize{ sizeof(T) };
 			char* allowedPtr{ this->requestMemory(needSize) };
@@ -213,12 +213,12 @@ export namespace UACE::MemManager::UnifiedBlockAllocator
 		}
 
 		template <typename T>
-		Ptr<T, UnifiedBlockAllocator> makeUniqueImpl(T* ptr)
+		[[nodiscard]] Ptr<T, UnifiedBlockAllocator> makeUniqueImpl(T* ptr)
 		{
 			return Ptr<T, UnifiedBlockAllocator>(ptr, this);
 		}
 
-		char* getPtrImpl() { return this->ptr; }
+		[[nodiscard]] char* getPtrImpl() { return this->ptr; }
 
 	private:
 		friend UACE::MemManager::AllocatorBase<UnifiedBlockAllocator>;

@@ -91,7 +91,7 @@ export module UACEViewerUtils;
 export namespace UACE::ViewerUtils
 {
 
-	size_t hashString(const std::string_view str)
+	[[nodiscard]] size_t hashString(const std::string_view str)
 	{
 
 		if (str.empty())

@@ -31,7 +31,7 @@ export namespace UACE::UTILS
 
 		}
 
-		bool push(const T& val)
+		[[nodiscard]] bool push(const T& val)
 		{
 
 			std::lock_guard gl(this->m);
@@ -60,7 +60,7 @@ export namespace UACE::UTILS
 			this->bIsEmpty = false;
 			return true;
 		}
-		auto pop()
+		[[nodiscard]] auto pop()
 		{
 
 			std::lock_guard gl(this->m);
@@ -84,12 +84,11 @@ export namespace UACE::UTILS
 
 		}
 
-		constexpr auto getIsEmpty() const noexcept { return this->bIsEmpty; }
-
-		constexpr auto getMaxEls() const noexcept { return size; }
+		[[nodiscard]] constexpr auto getIsEmpty() const noexcept { return this->bIsEmpty; }
+		[[nodiscard]] constexpr auto getMaxEls() const noexcept { return size; }
 
 	private:
-		constexpr auto computeWrappedIndex(size_t val) { return val % size; }
+		[[nodiscard]] constexpr auto computeWrappedIndex(size_t val) { return val % size; }
 
 	private:
 		ubAlloc* allocator{ nullptr };

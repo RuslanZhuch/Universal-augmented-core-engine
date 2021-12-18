@@ -23,14 +23,11 @@ export namespace UACE::MemManager
 		{
 		}
 
-		constexpr auto getOffset() const noexcept { return this->offset; }
-		constexpr auto getSize() const noexcept { return this->size; }
-		constexpr auto getFreeSpace() const noexcept { return this->freeSpace; }
+		[[nodiscard]] constexpr auto getOffset() const noexcept { return this->offset; }
+		[[nodiscard]] constexpr auto getSize() const noexcept { return this->size; }
+		[[nodiscard]] constexpr auto getFreeSpace() const noexcept { return this->freeSpace; }
 
-//		DomainId createDomain(MemSize size);
-//		DomainDesc getDomainDesc(DomainId id);
-
-		MemSize reserveMemory(MemSize size)
+		[[nodiscard]] MemSize reserveMemory(MemSize size)
 		{
 			
 			constexpr MemSize minMemBlock = 16_b;
@@ -52,8 +49,8 @@ export namespace UACE::MemManager
 			return needMemorySize;
 
 		}
-//
-		char* getMemoryPointer() const noexcept
+
+		[[nodiscard]] char* getMemoryPointer() const noexcept
 		{
 
 			const auto offset{ this->offset };
@@ -64,15 +61,13 @@ export namespace UACE::MemManager
 			return offsetPtr;
 
 		}
-//
+
 		void reset() noexcept
 		{
 
 			this->freeSpace = this->size;
 
 		}
-//
-//		void clearDomains();
 
 	private:
 

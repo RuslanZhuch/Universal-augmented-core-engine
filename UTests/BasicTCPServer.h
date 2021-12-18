@@ -50,7 +50,7 @@ public:
 	void sendData(const auto& container)
 	{
 
-		const auto getFreeSenderId = [this]()
+		[[nodiscard]] const auto getFreeSenderId = [this]()
 		{
 			int id{ 0 };
 			for (const auto bFree : this->aFreeSendersId)

@@ -26,7 +26,7 @@ export namespace UACE
 			this->readPtr = reinterpret_cast<char*>(this->dataPtr.ptr);
 		}
 
-		T* append(size_t appendSize)
+		[[nodiscard]] T* append(size_t appendSize)
 		{
 
 			const auto bFitForHeader{ (this->freespaceLeft > HEADER_SIZE) };
@@ -53,7 +53,7 @@ export namespace UACE
 
 		}
 
-		size_t copyAndPop(T* destPtr, size_t destSize)
+		[[nodiscard]] size_t copyAndPop(T* destPtr, size_t destSize)
 		{
 
 			//Read header
@@ -115,7 +115,7 @@ export namespace UACE
 
 		}
 
-		char* movePointer(char* currPointer, int steps)
+		[[nodiscard]] char* movePointer(char* currPointer, int steps)
 		{
 			auto rootPtr{ reinterpret_cast<char*>(this->dataPtr.ptr) };
 			const auto absOffset{ currPointer - rootPtr + steps};

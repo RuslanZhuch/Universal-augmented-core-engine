@@ -18,7 +18,7 @@ export namespace UACE::Containers
 			dataPtr(alloc->createRaw<T>(capacity))
 		{}
 		
-		Array copy()
+		[[nodiscard]] Array copy()
 		{
 			Array<T, capacity, Alloc> newArray(this->alloc);
 			newArray.resize(this->currSize);
@@ -26,7 +26,7 @@ export namespace UACE::Containers
 			return newArray;
 		}
 
-		constexpr auto append(const T& data) noexcept
+		[[nodiscard]] constexpr auto append(const T& data) noexcept
 		{
 			if ((this->currSize < capacity - 1) && (this->dataPtr.ptr != nullptr))
 			{
@@ -37,14 +37,14 @@ export namespace UACE::Containers
 			return this->currSize;
 		}
 
-		T& operator[](size_t id) const
+		[[nodiscard]] T& operator[](size_t id) const
 		{
 //			const auto byteOffset{ id * sizeof(T) };
 			auto ptr{ this->dataPtr.ptr + id };
 			return *(ptr);
 		}
 
-		T* data() noexcept { return this->dataPtr.ptr; }
+		[[nodiscard]] T* data() noexcept { return this->dataPtr.ptr; }
 
 		void resize(size_t newSize)
 		{
@@ -69,8 +69,8 @@ export namespace UACE::Containers
 
 		}
 
-		constexpr auto getSize() const noexcept { return this->currSize; }
-		constexpr auto getCapacity() const noexcept { return capacity; }
+		[[nodiscard]] constexpr auto getSize() const noexcept { return this->currSize; }
+		[[nodiscard]] constexpr auto getCapacity() const noexcept { return capacity; }
 
 	private:
 		Alloc* alloc{ nullptr };

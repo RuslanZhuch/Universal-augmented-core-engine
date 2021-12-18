@@ -101,14 +101,14 @@ export namespace UACE
 				if (strcmp(pkg->deviationType.data(), "Transform") == 0)
 				{
 					const auto objId{ logger.getObjectId(hashObjectId) };
-					logger.setObjectTransform(objId, { recPkg.data(), recSize1 });
-					this->desc.cbOnTransform(objId, this->recPkg.data(), recSize1);
+					if (logger.setObjectTransform(objId, { recPkg.data(), recSize1 }))
+						this->desc.cbOnTransform(objId, this->recPkg.data(), recSize1);
 				}
 				else if (strcmp(pkg->deviationType.data(), "Mesh") == 0)
 				{
 					const auto objId{ logger.getObjectId(hashObjectId) };
-					logger.setObjectMesh(objId, { recPkg.data(), recSize1 });
-					this->desc.cbOnMesh(objId, this->recPkg.data(), recSize1);
+					if (logger.setObjectMesh(objId, { recPkg.data(), recSize1 }))
+						this->desc.cbOnMesh(objId, this->recPkg.data(), recSize1);
 				}
 				else if (strcmp(pkg->deviationType.data(), "Creation") == 0)
 				{
@@ -154,7 +154,8 @@ export namespace UACE
 			}
 			else
 			{
-				client.popPkg(recPkg.data(), recPkg.size());
+				// Not happy path check
+				[[maybe_unused]] const auto bPopped{ client.popPkg(recPkg.data(), recPkg.size()) };
 			}
 
 		}

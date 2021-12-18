@@ -26,11 +26,11 @@ export namespace UACE::MemManager
 		T* ptr{ nullptr };
 		Alloc* allocPtr{ nullptr };
 
-		T* operator->()
+		[[nodiscard]] T* operator->()
 		{
 			return ptr;
 		}
-		T operator*()
+		[[nodiscard]] T operator*()
 		{
 			return *ptr;
 		}
@@ -81,21 +81,21 @@ export namespace UACE::MemManager
 	{
 
 	public:
-		constexpr auto getIsValid() const { return static_cast<const Alloc*>(this)->getIsValidImpl(); }
+		[[nodiscard]] constexpr auto getIsValid() const { return static_cast<const Alloc*>(this)->getIsValidImpl(); }
 
 		template <typename T, typename ... Args>
-		Ptr<T, Alloc> createUnique(Args && ... args)
+		[[nodiscard]] Ptr<T, Alloc> createUnique(Args && ... args)
 		{
 			return static_cast<Alloc*>(this)->template createUniqueImpl<T>(std::forward<Args>(args)...);
 		}
 
 		template<typename T = char>
-		Ptr<T, Alloc> createRaw(int numOfEls)
+		[[nodiscard]] Ptr<T, Alloc> createRaw(int numOfEls)
 		{
 			return static_cast<Alloc*>(this)->createRawImpl<T>(numOfEls);
 		}
 		template <typename T, typename ... Args>
-		T* create(Args && ... args)
+		[[nodiscard]] T* create(Args && ... args)
 		{
 			return static_cast<Alloc*>(this)->template createImpl<T>(std::forward<Args>(args)...);
 		}
@@ -106,12 +106,12 @@ export namespace UACE::MemManager
 		}
 
 		template <typename T>
-		Ptr<T, Alloc> makeUnique(T* ptr)
+		[[nodiscard]] Ptr<T, Alloc> makeUnique(T* ptr)
 		{
 			return static_cast<Alloc*>(this)->makeUniqueImpl(ptr);
 		}
 
-		char* getPtr()
+		[[nodiscard]] char* getPtr()
 		{
 			return static_cast<Alloc*>(this)->getPtrImpl();
 		}

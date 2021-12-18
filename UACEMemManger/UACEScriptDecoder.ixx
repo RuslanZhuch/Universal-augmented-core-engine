@@ -40,7 +40,7 @@ export namespace UACE::Script
 			:alloc(alloc)
 		{}
 
-		ScriptData decode(char* rawPtr)
+		[[nodiscard]] ScriptData decode(char* rawPtr)
 		{
 
 			auto point{ rawPtr };

@@ -3,7 +3,7 @@ module;
 export module UACEBasicScriptFuncs;
 
 template<typename T>
-T extractParam(char* ptr, int offset)
+[[nodiscard]] T extractParam(char* ptr, int offset)
 {
 	T out;
 	memcpy(&out, ptr + offset, sizeof(T));

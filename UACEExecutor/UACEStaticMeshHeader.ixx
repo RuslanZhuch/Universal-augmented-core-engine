@@ -32,13 +32,13 @@ export namespace UACE::Map
 			this->clear();
 		}
 
-		constexpr auto getIsValid() 
+		[[nodiscard]] constexpr auto getIsValid() 
 		{
 			return this->header.getReady() &&
 				this->elements.allocPtr != nullptr;
 		}
 
-		bool create(uint32_t objId, uint32_t address, uint32_t size)
+		[[nodiscard]] bool create(uint32_t objId, uint32_t address, uint32_t size)
 		{
 
 			if (size == 0 || 
@@ -64,7 +64,7 @@ export namespace UACE::Map
 
 		}
 
-		StaticMeshHeaderUtils::Element get(uint32_t objId)
+		[[nodiscard]] StaticMeshHeaderUtils::Element get(uint32_t objId)
 		{
 
 			const auto id{ this->header.find(objId) };

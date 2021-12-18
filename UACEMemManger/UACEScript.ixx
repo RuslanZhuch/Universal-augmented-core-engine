@@ -92,16 +92,16 @@ export namespace UACE::Script
 
 		}
 
-		bool load(std::string_view filename)
+		[[nodiscard]] bool load(std::string_view filename)
 		{
 			this->scriptData = UACE::Script::loadFromFile(filename, this->alloc);
 			this->bLoaded = true;
 			return this->bLoaded;
 		}
 
-		constexpr auto getLoaded() const noexcept { return this->bLoaded; }
+		[[nodiscard]] constexpr auto getLoaded() const noexcept { return this->bLoaded; }
 
-		auto createInstance()
+		[[nodiscard]] auto createInstance()
 		{
 			return this->alloc->createUnique<Instance<Alloc>>(this->scriptData.funcDataPtr.ptr, this->scriptData.structDataPtr.ptr, this->alloc);
 		}

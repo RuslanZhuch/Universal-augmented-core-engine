@@ -9,7 +9,7 @@ export namespace UACE::Script
 {
 
 	template<UACE::MemManager::Allocator Alloc>
-	auto loadFromFile(std::string_view filename, Alloc* alloc)
+	[[nodiscard]] auto loadFromFile(std::string_view filename, Alloc* alloc)
 	{
 
 		std::ifstream srcFile(filename.data(), std::ios::binary);

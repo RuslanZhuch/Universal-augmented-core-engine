@@ -16,7 +16,7 @@ export namespace UACE::PkgBlobCoder
 	};
 
 	template<Mat4x4 M>
-	const std::optional<M> decodeMat4x4(char* blobData, size_t blobSize)
+	[[nodiscard]] const std::optional<M> decodeMat4x4(char* blobData, size_t blobSize)
 	{
 		
 		if ((blobData == nullptr) || (blobSize != 64))
