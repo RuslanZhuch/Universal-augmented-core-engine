@@ -1,3 +1,6 @@
 [submodule "asio"]
 	path = asio
 	url = https://github.com/chriskohlhoff/asio.git
+[submodule "UACEViewerUtils/rapidjson"]
+	path = UACEViewerUtils/rapidjson
+	url = https://github.com/Tencent/rapidjson.git
