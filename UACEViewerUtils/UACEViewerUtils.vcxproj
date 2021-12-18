@@ -89,7 +89,7 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(ProjectDir)include;$(ProjectDir)include\asio;$(IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir)include;E:\Projects\DirectX\UACE\UACE\asio\asio;$(IncludePath)</IncludePath>
     <SourcePath>$(ProjectDir)src\sqlite3;$(SourcePath)</SourcePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
