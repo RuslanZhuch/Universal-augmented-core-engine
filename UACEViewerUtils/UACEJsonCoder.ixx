@@ -4,8 +4,8 @@ module;
 #include <array>
 #include <string_view>
 
-#include "include/rapidjson/document.h"
-#include "include/rapidjson/writer.h"
+#include "rapidjson/include/rapidjson/document.h"
+#include "rapidjson/include/rapidjson/writer.h"
 
 export module UACEJsonCoder;
 
