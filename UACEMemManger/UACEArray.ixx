@@ -12,13 +12,11 @@ export namespace UACE::Containers
 	{
 
 	public:
-//		explicit Array()
-//		{}
-		explicit Array(Alloc* alloc) : alloc(alloc),
+		explicit constexpr Array(Alloc* alloc) : alloc(alloc),
 			dataPtr(alloc->createRaw<T>(capacity))
 		{}
 		
-		[[nodiscard]] Array copy()
+		[[nodiscard]] constexpr Array copy()
 		{
 			Array<T, capacity, Alloc> newArray(this->alloc);
 			newArray.resize(this->currSize);
@@ -37,16 +35,16 @@ export namespace UACE::Containers
 			return this->currSize;
 		}
 
-		[[nodiscard]] T& operator[](size_t id) const
+		[[nodiscard]] constexpr T& operator[](size_t id) const
 		{
 //			const auto byteOffset{ id * sizeof(T) };
 			auto ptr{ this->dataPtr.ptr + id };
 			return *(ptr);
 		}
 
-		[[nodiscard]] T* data() noexcept { return this->dataPtr.ptr; }
+		[[nodiscard]] constexpr T* data() noexcept { return this->dataPtr.ptr; }
 
-		void resize(size_t newSize)
+		constexpr void resize(size_t newSize)
 		{
 
 			if (newSize > capacity)
@@ -56,13 +54,13 @@ export namespace UACE::Containers
 
 		}
 
-		void clear()
+		constexpr void clear()
 		{
 
 			memset(this->dataPtr.ptr, 0, this->dataPtr.numOfElements);
 
 		}
-		void reset()
+		constexpr void reset()
 		{
 
 			this->currSize = 0;

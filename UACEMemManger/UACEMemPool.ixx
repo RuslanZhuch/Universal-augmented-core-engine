@@ -1,4 +1,5 @@
 module;
+#include <vector>
 #include <array>
 export module UACEMemPool;
 
@@ -21,19 +22,20 @@ export namespace UACE::MemManager
 		Pool& operator=(const Pool&) = delete;
 		Pool& operator=(Pool&&) = delete;
 
-		Pool(PoolSize size)
+		constexpr Pool(PoolSize size)
 		{
 
-			this->data = new char[size];
+			this->vBuffer.resize(size);
+			this->ptr = this->vBuffer.data();
 			this->size = size;
 
 		}
 
 		[[nodiscard]] constexpr PoolSize getSize() const noexcept { return this->size; }
 
-		[[nodiscard]] constexpr char* getPtr() noexcept { return this->data; }
+		[[nodiscard]] constexpr char* getPtr() noexcept { return this->ptr; }
 
-		[[nodiscard]] MemManager::Domain* createDomain(MemSize size)
+		[[nodiscard]] constexpr MemManager::Domain* createDomain(MemSize size)
 		{
 
 			const auto newDomainOffset{ this->totalDomainSize };
@@ -43,18 +45,17 @@ export namespace UACE::MemManager
 				return nullptr;
 			}
 
-			MemManager::Domain domain(size, this->totalDomainSize, this->data);
-
+			this->aDomains[this->numOfDomains] = 
+				MemManager::Domain(size, this->totalDomainSize, this->ptr);
 			this->totalDomainSize += size;
 
-			this->aDomains[this->numOfDomains] = domain;
 			this->numOfDomains++;
 
 			return &this->aDomains[this->numOfDomains - 1];
 
 		}
 
-		void clearDomains()
+		constexpr void clearDomains()
 		{
 
 			for (size_t domainId{ 0 }; domainId < this->numOfDomains; domainId++)
@@ -69,7 +70,8 @@ export namespace UACE::MemManager
 	private:
 
 		PoolSize size{ 0 };
-		mutable char* data{ nullptr };
+		std::vector<char> vBuffer{};
+		char* ptr{ nullptr };
 
 		std::array<MemManager::Domain, 32> aDomains;
 		size_t numOfDomains{ 0 };

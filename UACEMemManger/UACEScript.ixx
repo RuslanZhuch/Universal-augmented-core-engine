@@ -20,7 +20,7 @@ export namespace UACE::Script
 	{
 	public:
 
-		explicit Instance(UACE::Containers::Array<int, SCRIPT_DATA_BYTES, Alloc>* inFuncData,
+		explicit constexpr Instance(UACE::Containers::Array<int, SCRIPT_DATA_BYTES, Alloc>* inFuncData,
 			UACE::Containers::Array<int, SCRIPT_DATA_BYTES, Alloc>* inStructData, Alloc* alloc)
 			: funcData(dataPtr_t<Alloc>(nullptr, nullptr)), structData(inStructData), alloc(alloc)
 		{
@@ -29,7 +29,7 @@ export namespace UACE::Script
 			this->funcData.allocPtr = alloc;
 		}
 
-		void run()
+		constexpr void run()
 		{
 
 			int retData{ 0 };
@@ -86,13 +86,13 @@ export namespace UACE::Script
 	{
 
 	public:
-		explicit Prototype(Alloc* alloc)
+		explicit constexpr Prototype(Alloc* alloc)
 			:alloc(alloc)
 		{
 
 		}
 
-		[[nodiscard]] bool load(std::string_view filename)
+		[[nodiscard]] constexpr bool load(std::string_view filename)
 		{
 			this->scriptData = UACE::Script::loadFromFile(filename, this->alloc);
 			this->bLoaded = true;
@@ -101,7 +101,7 @@ export namespace UACE::Script
 
 		[[nodiscard]] constexpr auto getLoaded() const noexcept { return this->bLoaded; }
 
-		[[nodiscard]] auto createInstance()
+		[[nodiscard]] constexpr auto createInstance()
 		{
 			return this->alloc->createUnique<Instance<Alloc>>(this->scriptData.funcDataPtr.ptr, this->scriptData.structDataPtr.ptr, this->alloc);
 		}

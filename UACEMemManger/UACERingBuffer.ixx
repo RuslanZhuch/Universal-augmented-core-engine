@@ -15,7 +15,7 @@ export namespace UACE
 	{
 
 	public:
-		explicit RingBuffer(Alloc* alloc)
+		explicit constexpr RingBuffer(Alloc* alloc)
 			:alloc(alloc), 
 			dataPtr(alloc->createRaw<T>(capacity)), 
 			freespaceLeft(capacity - HEADER_SIZE)
@@ -26,7 +26,7 @@ export namespace UACE
 			this->readPtr = reinterpret_cast<char*>(this->dataPtr.ptr);
 		}
 
-		[[nodiscard]] T* append(size_t appendSize)
+		[[nodiscard]] constexpr T* append(size_t appendSize)
 		{
 
 			const auto bFitForHeader{ (this->freespaceLeft > HEADER_SIZE) };
@@ -53,7 +53,7 @@ export namespace UACE
 
 		}
 
-		[[nodiscard]] size_t copyAndPop(T* destPtr, size_t destSize)
+		[[nodiscard]] constexpr size_t copyAndPop(T* destPtr, size_t destSize)
 		{
 
 			//Read header
@@ -100,7 +100,7 @@ export namespace UACE
 		}
 
 	private:
-		void processWrap(size_t needSize)
+		constexpr void processWrap(size_t needSize)
 		{
 
 			auto rootPtr{ this->dataPtr.ptr };
@@ -115,7 +115,7 @@ export namespace UACE
 
 		}
 
-		[[nodiscard]] char* movePointer(char* currPointer, int steps)
+		[[nodiscard]] constexpr char* movePointer(char* currPointer, int steps)
 		{
 			auto rootPtr{ reinterpret_cast<char*>(this->dataPtr.ptr) };
 			const auto absOffset{ currPointer - rootPtr + steps};

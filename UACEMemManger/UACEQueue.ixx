@@ -26,7 +26,7 @@ export namespace UACE::UTILS
 		};
 
 	public:
-		Queue(ubAlloc* allocator)
+		constexpr Queue(ubAlloc* allocator)
 			:allocator(allocator)
 		{
 

@@ -3,7 +3,7 @@ module;
 export module UACEBasicScriptFuncs;
 
 template<typename T>
-[[nodiscard]] T extractParam(char* ptr, int offset)
+[[nodiscard]] constexpr T extractParam(char* ptr, int offset)
 {
 	T out;
 	memcpy(&out, ptr + offset, sizeof(T));
@@ -11,7 +11,7 @@ template<typename T>
 }
 
 template<typename T>
-void returnVal(const T& val, char* outPtr, int offset)
+constexpr void returnVal(const T& val, char* outPtr, int offset)
 {
 	memcpy(outPtr + offset, &val, sizeof(T));
 }
@@ -29,7 +29,7 @@ export namespace UACE::ScriptFuncs
 
 	inline Obj1 gObj1{};
 
-	void mathPlus(char* argsPtr, char* retPtr)
+	constexpr void mathPlus(char* argsPtr, char* retPtr)
 	{
 		const auto left{ extractParam<int>(argsPtr, 0) };
 		const auto right{ extractParam<int>(argsPtr, 4) };
@@ -38,7 +38,7 @@ export namespace UACE::ScriptFuncs
 		returnVal(ans, retPtr, 0);
 	};
 
-	void mathNegate(char* argsPtr, char* retPtr)
+	constexpr void mathNegate(char* argsPtr, char* retPtr)
 	{
 		const auto val{ extractParam<int>(argsPtr, 0) };
 
@@ -47,13 +47,13 @@ export namespace UACE::ScriptFuncs
 		returnVal(ans, retPtr, 0);
 	};
 
-	void getObj1(char* argsPtr, char* retPtr)
+	constexpr void getObj1(char* argsPtr, char* retPtr)
 	{
 		auto objPtr{ &gObj1 };
 		returnVal(objPtr, retPtr, 0);
 	};
 
-	void processObj(char* argsPtr, char* retPtr)
+	constexpr void processObj(char* argsPtr, char* retPtr)
 	{
 
 		const auto summedData{ extractParam<int>(argsPtr, 0) };

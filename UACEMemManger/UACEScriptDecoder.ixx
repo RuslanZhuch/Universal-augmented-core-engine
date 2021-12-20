@@ -21,10 +21,10 @@ export namespace UACE::Script
 		struct ScriptData
 		{
 
-			explicit ScriptData()
+			explicit constexpr ScriptData()
 				:funcDataPtr(dataPtr_t<Alloc>(nullptr, nullptr)), structDataPtr(dataPtr_t<Alloc>(nullptr, nullptr))
 			{}
-			ScriptData(auto funcDataPtr, auto structDataPtr)
+			constexpr ScriptData(auto funcDataPtr, auto structDataPtr)
 				:funcDataPtr(std::move(funcDataPtr)), structDataPtr(std::move(structDataPtr))
 			{}
 
@@ -36,11 +36,11 @@ export namespace UACE::Script
 	public:
 		Decoder() = delete;
 
-		explicit Decoder(Alloc* alloc)
+		explicit constexpr Decoder(Alloc* alloc)
 			:alloc(alloc)
 		{}
 
-		[[nodiscard]] ScriptData decode(char* rawPtr)
+		[[nodiscard]] constexpr ScriptData decode(char* rawPtr)
 		{
 
 			auto point{ rawPtr };
