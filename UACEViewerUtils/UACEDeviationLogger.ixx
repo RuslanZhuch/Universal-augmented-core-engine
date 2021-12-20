@@ -247,7 +247,7 @@ export namespace UACE
 
 	private:
 		template <typename ... _Type>
-		[[nodiscard]] std::string_view createStatement(const std::string_view text, const _Type& ... args) const
+		[[nodiscard]] constexpr std::string_view createStatement(const std::string_view text, const _Type& ... args) const
 		{
 			const auto q = std::format_to_n(this->buffer, sizeof(this->buffer), text, args...);
 			if (q.size > sizeof(buffer))

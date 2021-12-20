@@ -70,14 +70,14 @@ export namespace UACE
 	public:
 
 		DeviationDecoder() = delete;
-		explicit DeviationDecoder(Alloc* alloc, const DevDesc& desc, const std::string_view dbFile, const std::string_view ip, int port)
+		explicit constexpr DeviationDecoder(Alloc* alloc, const DevDesc& desc, const std::string_view dbFile, const std::string_view ip, int port)
 			:desc(desc), client(alloc, ip, port)
 		{
 			std::memset(this->dbName, 0, sizeof(this->dbName));
 			std::memcpy(this->dbName, dbFile.data(), dbFile.size());
 		}
 
-		void tick()
+		constexpr void tick()
 		{
 			if (this->client.getNumOfPkgs() < 2)
 			{

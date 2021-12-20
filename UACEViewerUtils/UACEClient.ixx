@@ -8,6 +8,8 @@ module;
 #include <thread>
 #include <atomic>
 
+#include <mutex>
+
 export module UACEClient;
 
 //For Ptr
@@ -24,7 +26,7 @@ export namespace UACE
 
 	public:
 
-		explicit Client(Alloc* alloc, std::string_view ip, int port)
+		explicit constexpr Client(Alloc* alloc, std::string_view ip, int port)
 			:buffer(alloc), sock(ios)
 		{
 
@@ -57,9 +59,9 @@ export namespace UACE
 
 		}
 
-		[[nodiscard]] auto getNumOfPkgs() const { return static_cast<int>(this->atNumOfPkgs.load()); }
+		[[nodiscard]] constexpr auto getNumOfPkgs() const { return static_cast<int>(this->atNumOfPkgs.load()); }
 
-		[[nodiscard]] size_t popPkg(char* destBuffer, size_t destBufferSize)
+		[[nodiscard]] constexpr size_t popPkg(char* destBuffer, size_t destBufferSize)
 		{
 			
 			if (this->atNumOfPkgs.load() == 0)
@@ -74,7 +76,7 @@ export namespace UACE
 		}
 
 	private:
-		[[nodiscard]] bool read(auto& stoken, const auto& buffer, size_t transferSize)
+		[[nodiscard]] constexpr bool read(auto& stoken, const auto& buffer, size_t transferSize)
 		{
 			size_t bytesReaded{ 0 };
 			std::atomic_flag flComplete{};
@@ -97,7 +99,7 @@ export namespace UACE
 			return transferSize == bytesReaded;
 		}
 
-		void proceed(auto& sock, auto stoken)
+		constexpr void proceed(auto& sock, auto stoken)
 		{
 
 			unsigned int headData{ 0 };
@@ -145,4 +147,4 @@ export namespace UACE
 
 	};
 
-}
+};
