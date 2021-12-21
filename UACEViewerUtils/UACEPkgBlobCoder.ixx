@@ -2,6 +2,8 @@ module;
 
 #include <optional>
 #include <array>
+#include <bit>
+#include <span>
 
 export module UACEPkgBlobCoder;
 
@@ -16,16 +18,16 @@ export namespace UACE::PkgBlobCoder
 	};
 
 	template<Mat4x4 M>
-	[[nodiscard]] const std::optional<M> decodeMat4x4(char* blobData, size_t blobSize)
+	[[nodiscard]] constexpr const std::optional<M> decodeMat4x4(std::span<char> blobData)
 	{
 		
-		if ((blobData == nullptr) || (blobSize != 64))
+		if ((blobData.data() == nullptr) || (blobData.size() != 64))
 		{
 			return std::nullopt;
 		}
 
 		M out{};
-		std::memcpy(reinterpret_cast<char*>(&out), blobData, blobSize);
+		std::memcpy(reinterpret_cast<char*>(&out), blobData.data(), blobData.size());
 
 		return out;
 

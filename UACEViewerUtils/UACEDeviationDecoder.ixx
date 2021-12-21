@@ -25,20 +25,6 @@ export namespace UACE::Deviation
 		typename OnMesh>
 	struct Desc
 	{
-		Desc() = delete;
-		explicit Desc(
-			const OnCreation& onCreation, 
-			const OnDeletion& onDeletion,
-			const OnRename& onRename,
-			const OnTransform& onTransform,
-			const OnMesh& onMesh) :
-			cbOnCreation(onCreation),
-			cbOnDeletion(onDeletion),
-			cbOnRename(onRename),
-			cbOnTransform(onTransform),
-			cbOnMesh(onMesh)
-		{}
-
 		OnCreation cbOnCreation {};
 		OnDeletion cbOnDeletion {};
 		OnRename cbOnRename {};

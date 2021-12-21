@@ -82,7 +82,7 @@ TEST(deviationCoder, DecodeTransformation)
 	std::array<char, sizeof(trMat)> blob0{};
 	std::memcpy(blob0.data(), trMat.m.data(), sizeof(trMat));
 	
-	const auto oMat{ UACE::PkgBlobCoder::decodeMat4x4<Mat>(blob0.data(), blob0.size())};
+	const auto oMat{ UACE::PkgBlobCoder::decodeMat4x4<Mat>(blob0)};
 	EXPECT_TRUE(oMat.has_value());
 
 	EXPECT_EQ(std::memcmp(oMat->m.data(), trMat.m.data(), 64), 0);
@@ -92,10 +92,10 @@ TEST(deviationCoder, DecodeTransformation)
 TEST(deviationUtils, nameHash)
 {
 
-	const char str1[]{"First string data"};
-	const char str2[]{"Second string data"};
-	const char str3[]{"Second string daat"};
-	const char str4[]{""};
+	constexpr char str1[]{"First string data"};
+	constexpr char str2[]{"Second string data"};
+	constexpr char str3[]{"Second string daat"};
+	constexpr char str4[]{""};
 
 	const auto h1{ UACE::ViewerUtils::hashString(str1) };
 	const auto h2{ UACE::ViewerUtils::hashString(str2) };
@@ -459,7 +459,7 @@ TEST(deviationDecoder, decodeFromClient)
 
 	};
 
-	UACE::Deviation::Desc desc(cbOnCreation, onDeletion, cbOnRename, cbOnTransform, cbOnMesh);
+	UACE::Deviation::Desc desc{ cbOnCreation, onDeletion, cbOnRename, cbOnTransform, cbOnMesh };
 
 	UACE::DeviationDecoder devDecoder(&ubAlloc, desc, "loggerDatabase.sqlite", "127.0.0.1", 6000);
 
