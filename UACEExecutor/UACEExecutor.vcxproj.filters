@@ -12,5 +12,8 @@
     <ClCompile Include="UACEStaticMeshHeader.ixx">
       <Filter>Lib</Filter>
     </ClCompile>
+    <ClCompile Include="UACEMeshDataCache.ixx">
+      <Filter>Lib</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

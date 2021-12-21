@@ -20,6 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="UACEDirectoryHeader.ixx" />
+    <ClCompile Include="UACEMeshDataCache.ixx" />
     <ClCompile Include="UACEStaticMeshHeader.ixx" />
   </ItemGroup>
   <ItemGroup>

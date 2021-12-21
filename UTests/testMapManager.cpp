@@ -1,11 +1,14 @@
 #pragma warning(disable: 5050)
 #include "gtest/gtest.h"
+#include <vector>
 
 import UACEDirectoryHeader;
 import UACEStaticMeshHeader;
 
 import UACEMemPool;
 import UACEUnifiedBlockAllocator;
+
+import UACEMeshDataCache;
 
 using namespace UACE::MemManager::Literals;
 
@@ -192,6 +195,79 @@ TEST(map, staticMeshMetadata)
 		const UACE::Map::StaticMeshHeaderUtils::Element el{ smesh.get(objId) };
 		EXPECT_EQ(el.address, 0);
 		EXPECT_EQ(el.size, 0);
+	}
+
+}
+
+TEST(map, tsMeshDataCache)
+{
+
+	namespace umem = UACE::MemManager;
+	using ump = umem::Pool;
+
+	constexpr umem::MemSize MEM_BYTES{ 2_kb };
+	umem::Pool pool(MEM_BYTES);
+	umem::Domain* domain{ pool.createDomain(MEM_BYTES) };
+	EXPECT_NE(domain, nullptr);
+
+	namespace upa = umem::UnifiedBlockAllocator;
+	upa::UnifiedBlockAllocator ubAlloc{ upa::createAllocator(domain, MEM_BYTES) };
+	EXPECT_TRUE(ubAlloc.getIsValid());
+
+	UACE::Map::StaticMeshCache mcache(&ubAlloc);
+
+	EXPECT_FALSE(mcache.prepare(MEM_BYTES * 2));
+	EXPECT_TRUE(mcache.prepare(MEM_BYTES));
+
+	struct TVertex
+	{
+		struct Vec2
+		{
+			float x{};
+			float y{};
+		};
+		struct Vec3
+		{
+			float x{};
+			float y{};
+			float z{};
+		};
+		Vec3 position{};
+		Vec3 normal{};
+		Vec2 texCoord{};
+	};
+
+	constexpr size_t NUM_OF_VERTICES_1{ 50 };
+	std::vector<char> vStaticMesh(NUM_OF_VERTICES_1 * sizeof(TVertex));
+	for (char val{ 0 }; auto v : vStaticMesh)
+	{
+		v = val;
+		val++;
+	}
+	static_assert(NUM_OF_VERTICES_1 * sizeof(TVertex) < MEM_BYTES);
+
+	EXPECT_TRUE(mcache.set({ vStaticMesh }));
+	{
+		const auto meshData{ mcache.getData() };
+		EXPECT_EQ(meshData.size(), vStaticMesh.size());
+		
+		auto cPtr{ meshData.begin() };
+		auto vPtr{ vStaticMesh.begin() };
+		while (cPtr != meshData.end() &&
+			vPtr != vStaticMesh.end())
+		{
+			EXPECT_EQ(*cPtr, *vPtr);
+			cPtr++;
+			vPtr++;
+		}
+	}
+
+	vStaticMesh.resize(MEM_BYTES * 2);
+	EXPECT_FALSE(mcache.set(vStaticMesh));
+	{
+		const auto meshData{ mcache.getData() };
+		EXPECT_EQ(meshData.size(), 0);
+		EXPECT_EQ(meshData.data(), nullptr);
 	}
 
 }
