@@ -12,6 +12,6 @@ It requers Visual studio 2022 with c++20 (/std:c++latest)
 
 I'm experimenting now with c++20 stuff like modules and concepts, and Visual studio's Intellisence still has a lot of bugs. It just doesn't work. 
 
-I consider to move from asio-based tcp/ip client to something more lightweight, maybe WinSockets. But I with it would be something more cross platform.
+I consider to move from asio-based tcp/ip client to something more lightweight, maybe WinSockets. But I wish it would be something more cross platform.
 
 I try do not use dynamic allocation, so some custom allocators were created. They are quite raw right now and not optimized for multithreading.
