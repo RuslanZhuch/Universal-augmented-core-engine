@@ -24,6 +24,9 @@
     <ClCompile Include="UACEDeviationDecoder.ixx">
       <Filter>Lib</Filter>
     </ClCompile>
+    <ClCompile Include="UACECoreDataStructs.ixx">
+      <Filter>Lib</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="asio_includes.h">

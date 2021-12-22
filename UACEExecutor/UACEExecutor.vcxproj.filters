@@ -15,5 +15,8 @@
     <ClCompile Include="UACEMeshDataCache.ixx">
       <Filter>Lib</Filter>
     </ClCompile>
+    <ClCompile Include="UACEMapDistributor.ixx">
+      <Filter>Lib</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

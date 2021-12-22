@@ -65,7 +65,7 @@ public:
 		};
 
 		int freeSenderId{ -1 };
-		while (freeSenderId == -1)
+		while (freeSenderId < 0 || freeSenderId >= 4)
 		{
 			freeSenderId = getFreeSenderId();
 		}

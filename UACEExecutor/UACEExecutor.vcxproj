@@ -20,12 +20,16 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="UACEDirectoryHeader.ixx" />
+    <ClCompile Include="UACEMapDistributor.ixx" />
     <ClCompile Include="UACEMeshDataCache.ixx" />
     <ClCompile Include="UACEStaticMeshHeader.ixx" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\UACEMemManger\UACEMemManger.vcxproj">
       <Project>{3b222276-56be-4f49-99fa-be9d6e138ff9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\UACEViewerUtils\UACEViewerUtils.vcxproj">
+      <Project>{d8922165-80eb-4ffb-937f-db4c89076044}</Project>
     </ProjectReference>
   </ItemGroup>
   <PropertyGroup Label="Globals">
@@ -84,6 +88,8 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
+    <RunCodeAnalysis>false</RunCodeAnalysis>
+    <EnableClangTidyCodeAnalysis>false</EnableClangTidyCodeAnalysis>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>

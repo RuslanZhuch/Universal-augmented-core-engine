@@ -45,9 +45,13 @@
     <IncludePath>$(SolutionDir);$(IncludePath)</IncludePath>
     <LibraryPath>$(SolutionDir)UACEViewerUtils\libs\$(Configuration);$(SolutionDir)UACEMemManager\$(Configuration);$(LibraryPath)</LibraryPath>
     <LinkIncremental>false</LinkIncremental>
+    <RunCodeAnalysis>false</RunCodeAnalysis>
+    <EnableClangTidyCodeAnalysis>false</EnableClangTidyCodeAnalysis>
   </PropertyGroup>
   <ItemGroup>
+    <ClInclude Include="cqueue.h" />
     <ClInclude Include="pch.h" />
+    <ClCompile Include="Structures.ixx" />
     <ClCompile Include="testBuffers.cpp" />
     <ClInclude Include="BasicTCPServer.h" />
     <ClCompile Include="testDeviation.cpp" />

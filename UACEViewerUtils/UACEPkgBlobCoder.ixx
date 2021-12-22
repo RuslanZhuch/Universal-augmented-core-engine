@@ -6,18 +6,12 @@ module;
 #include <span>
 
 export module UACEPkgBlobCoder;
+import UACECoreDataStructs;
 
 export namespace UACE::PkgBlobCoder
 {
 
-	template<typename Mat>
-	concept Mat4x4 = requires(Mat && mat)
-	{
-			requires (std::is_same_v<decltype(mat.m), std::array<std::array<float, 4>, 4>>) || 
-						(std::is_same_v<decltype(mat.m), float[4][4]>);
-	};
-
-	template<Mat4x4 M>
+	template<UACE::Structs::Mat4x4 M>
 	[[nodiscard]] constexpr const std::optional<M> decodeMat4x4(std::span<char> blobData)
 	{
 		

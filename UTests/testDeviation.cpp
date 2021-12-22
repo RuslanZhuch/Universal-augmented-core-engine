@@ -18,16 +18,9 @@ import UACEMemPool;
 import UACEClient;
 import UACEDeviationDecoder;
 
+import Structures;
+
 using namespace UACE::MemManager::Literals;
-
-struct Mat
-{
-	using mat_t = std::array<std::array<float, 4>, 4>;
-	Mat() = default;
-	Mat(const mat_t& m) : m(m) {}
-
-	mat_t m{};
-};
 
 TEST(deviationCoder, JsonCoder)
 {

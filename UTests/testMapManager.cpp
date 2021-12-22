@@ -1,6 +1,10 @@
 #pragma warning(disable: 5050)
 #include "gtest/gtest.h"
 #include <vector>
+#include <span>
+#include <variant>
+#include <algorithm>
+#include "cqueue.h"
 
 import UACEDirectoryHeader;
 import UACEStaticMeshHeader;
@@ -9,6 +13,9 @@ import UACEMemPool;
 import UACEUnifiedBlockAllocator;
 
 import UACEMeshDataCache;
+import UACEMapDistributor;
+
+import Structures;
 
 using namespace UACE::MemManager::Literals;
 
@@ -268,6 +275,168 @@ TEST(map, tsMeshDataCache)
 		const auto meshData{ mcache.getData() };
 		EXPECT_EQ(meshData.size(), 0);
 		EXPECT_EQ(meshData.data(), nullptr);
+	}
+
+}
+
+class TestStreamer
+{
+public:
+	struct DataStaticObjectCreated
+	{
+		size_t objId{};
+	};
+
+	struct DataStaticObjectDeleted
+	{
+		size_t objId{};
+	};
+
+	struct DataStaticSetTransform
+	{
+		Mat mat4x4{};
+		size_t objId{};
+	};
+
+	struct DataStaticSetMesh
+	{
+		size_t objId{};
+		std::span<const char> blob;
+	};
+
+	using Data_t = std::variant<
+		DataStaticObjectCreated,
+		DataStaticObjectDeleted,
+		DataStaticSetTransform,
+		DataStaticSetMesh>;
+
+public:
+	constexpr void createStaticObject(size_t objId)
+	{
+		qTriggered.push(DataStaticObjectCreated(objId));
+	}
+
+	constexpr void deleteStaticObject(size_t objId)
+	{
+		qTriggered.push(DataStaticObjectDeleted(objId));
+	}
+
+	constexpr void sendTransformData(size_t objId, const Mat& mat)
+	{
+		qTriggered.push(DataStaticSetTransform(mat, objId));
+	}
+
+	constexpr void sendMeshData(size_t objId, std::span<const char> blob)
+	{
+		qTriggered.push(DataStaticSetMesh(objId, blob));
+	}
+
+public:
+
+	cexpr::queue<Data_t> qTriggered{};
+
+};
+
+class TestProvider
+{
+	using Alloc_t = UACE::MemManager::UnifiedBlockAllocator::UnifiedBlockAllocator;
+	using Distributor_t = UACE::Map::Distributor<Alloc_t, TestStreamer>;
+
+public:
+	explicit constexpr TestProvider(Distributor_t* target)
+	{
+		this->target = target;
+	}
+
+	constexpr void triggerCreateNewObject(size_t objId)
+	{
+		this->target->onObjectCreated(objId);
+	}
+
+	constexpr void triggerSetTransform(size_t objId, const Mat& mat)
+	{
+		this->target->onSetObjectTransform(objId, mat);
+	}
+
+	constexpr void triggerSetMesh(size_t objId, std::span<const char> blob)
+	{
+		this->target->onSetMesh(objId, blob);
+	}
+
+	constexpr void triggerDeleteObject(size_t objId)
+	{
+		this->target->onDeleteObject(objId);
+	}
+
+private:
+	Distributor_t* target{ nullptr };
+
+};
+
+
+TEST(Map, tsMapDistributor)
+{
+
+	namespace umem = UACE::MemManager;
+	using ump = umem::Pool;
+
+	constexpr umem::MemSize MEM_BYTES{ 2_kb };
+	umem::Pool pool(MEM_BYTES);
+	umem::Domain* domain{ pool.createDomain(MEM_BYTES) };
+	EXPECT_NE(domain, nullptr);
+
+	namespace upa = umem::UnifiedBlockAllocator;
+	upa::UnifiedBlockAllocator ubAlloc{ upa::createAllocator(domain, MEM_BYTES) };
+	EXPECT_TRUE(ubAlloc.getIsValid());
+
+	TestStreamer streamer;
+
+	UACE::Map::Distributor distributor(&ubAlloc, &streamer);
+	TestProvider provider(&distributor);
+
+	size_t obj1Id{ 1 };
+	provider.triggerCreateNewObject(obj1Id);
+
+	EXPECT_EQ(streamer.qTriggered.size(), 1);
+	{
+		const auto varData{ streamer.qTriggered.front() };
+		streamer.qTriggered.pop();
+		const auto data{ std::get<TestStreamer::DataStaticObjectCreated>(varData) };
+		EXPECT_EQ(data.objId, obj1Id);
+	}
+
+	provider.triggerDeleteObject(obj1Id);
+	{
+		const auto varData{ streamer.qTriggered.front() };
+		streamer.qTriggered.pop();
+		const auto data{ std::get<TestStreamer::DataStaticObjectDeleted>(varData) };
+		EXPECT_EQ(data.objId, obj1Id);
+	}
+
+	Mat mat1({ { {1.f, 2.f, 3.f, 4.f}, {11.f, 21.f, 31.f, 41.f}, {12.f, 22.f, 33.f, 44.f}, {13.f, 23.f, 33.f, 43.f} } });
+	provider.triggerSetTransform(obj1Id, mat1);
+	{
+		const auto varData{ streamer.qTriggered.front() };
+		streamer.qTriggered.pop();
+		const auto data{ std::get<TestStreamer::DataStaticSetTransform>(varData) };
+		EXPECT_EQ(data.objId, obj1Id);
+		EXPECT_EQ(data.mat4x4, mat1);
+	}
+
+	std::vector<char> vMesh1(100);
+	for (char el{ 0 }; auto & m : vMesh1)
+	{
+		m = el++;
+	}
+	provider.triggerSetMesh(obj1Id, vMesh1);
+	provider.triggerSetTransform(obj1Id, mat1);
+	{
+		const auto varData{ streamer.qTriggered.front() };
+		streamer.qTriggered.pop();
+		const auto data{ std::get<TestStreamer::DataStaticSetMesh>(varData) };
+		EXPECT_EQ(data.objId, obj1Id);
+		EXPECT_EQ(data.blob.size(), vMesh1.size());
+		EXPECT_TRUE(std::ranges::equal(data.blob, vMesh1));
 	}
 
 }
