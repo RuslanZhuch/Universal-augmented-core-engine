@@ -2,6 +2,7 @@ module;
 #include <type_traits>
 #include <string>
 #include <array>
+#include <span>
 
 #include <variant>
 
@@ -22,7 +23,9 @@ export namespace UACE::Deviation
 		typename OnDeletion,
 		typename OnRename,
 		typename OnTransform,
-		typename OnMesh>
+		typename OnMesh,
+		typename OnCamera
+	>
 	struct Desc
 	{
 		OnCreation cbOnCreation {};
@@ -30,6 +33,7 @@ export namespace UACE::Deviation
 		OnRename cbOnRename {};
 		OnTransform cbOnTransform {};
 		OnMesh cbOnMesh{};
+		OnCamera cbOnCamera{};
 	};
 
 	template<typename Desc>
@@ -40,6 +44,7 @@ export namespace UACE::Deviation
 		requires std::is_invocable_v<decltype(d.cbOnRename), size_t, size_t, size_t, size_t, bool>;
 		requires std::is_invocable_v<decltype(d.cbOnTransform), size_t, char*, size_t>;
 		requires std::is_invocable_v<decltype(d.cbOnMesh), size_t, char*, size_t>;
+		requires std::is_invocable_v<decltype(d.cbOnCamera), size_t, std::span<const char>>;
 	};
 
 }
@@ -109,6 +114,14 @@ export namespace UACE
 					}
 
 					this->desc.cbOnCreation(newObjId, baseObjId, hashBaseObjectId != 0);
+				}
+				else if (strcmp(pkg->deviationType.data(), "Camera") == 0)
+				{
+					const auto cameraRawData{ std::string_view(recPkg.data(), recSize1) };
+					
+					const auto objId{ logger.getObjectId(hashObjectId) };
+					if (logger.setCamera(objId, cameraRawData))
+						this->desc.cbOnCamera(objId, cameraRawData);
 				}
 				else if (strcmp(pkg->deviationType.data(), "Deletion") == 0)
 				{

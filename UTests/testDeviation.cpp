@@ -5,6 +5,8 @@
 #include <array>
 #include <span>
 
+#include <cassert>
+
 #include "BasicTCPServer.h"
 
 import UACEJsonCoder;
@@ -79,6 +81,103 @@ TEST(deviationCoder, DecodeTransformation)
 	EXPECT_TRUE(oMat.has_value());
 
 	EXPECT_EQ(std::memcmp(oMat->m.data(), trMat.m.data(), 64), 0);
+
+}
+
+const auto createCameraData()
+{
+
+	std::array<char, 62> cRaw;
+	auto point{ cRaw.data() };
+	const auto pushData = [&cRaw](auto point, auto data)
+	{
+		assert(point + sizeof(data) <= cRaw.data() + cRaw.size());
+		std::memcpy(point, &data, sizeof(data));
+		point += sizeof(data);
+		return point;
+	};
+
+	float posX{ 5.f };
+	float posY{ 6.f };
+	float posZ{ -7.f };
+	point = pushData(point, posX);
+	point = pushData(point, posY);
+	point = pushData(point, posZ);
+
+	float dirX{ 1.f };
+	float dirY{ 2.f };
+	float dirZ{ 3.f };
+	point = pushData(point, dirX);
+	point = pushData(point, dirY);
+	point = pushData(point, dirZ);
+
+	float upX{ 10.f };
+	float upY{ 20.f };
+	float upZ{ 30.f };
+	point = pushData(point, upX);
+	point = pushData(point, upY);
+	point = pushData(point, upZ);
+
+	char type{ 1 };
+	point = pushData(point, type);
+
+	float orthographicScale{ 6.f };
+	point = pushData(point, orthographicScale);
+
+	float clipStart{ 0.001f };
+	float clipEnd{ 100.f };
+	point = pushData(point, clipStart);
+	point = pushData(point, clipEnd);
+
+	float aspectRatio{ 1.5f };
+	point = pushData(point, aspectRatio);
+
+	char sensorFitType{ 2 };
+	float sensorWidth{ 13.f };
+	float sensorHeight{ 23.f };
+	point = pushData(point, sensorFitType);
+	point = pushData(point, sensorWidth);
+	point = pushData(point, sensorHeight);
+
+	assert(point == cRaw.data() + cRaw.size());
+
+	return cRaw;
+
+}
+
+TEST(deviationCoder, DecodeCamera)
+{
+
+	const auto rawData{ createCameraData() };
+	const auto oDecodedData{ UACE::PkgBlobCoder::decodeCamera(rawData) };
+
+	EXPECT_TRUE(oDecodedData.has_value());
+	const auto decodedData{ oDecodedData.value() };
+
+	EXPECT_EQ(decodedData.posX, 5.f);
+	EXPECT_EQ(decodedData.posY, 6.f);
+	EXPECT_EQ(decodedData.posZ, -7.f);
+
+	EXPECT_EQ(decodedData.dirX, 1.f);
+	EXPECT_EQ(decodedData.dirY, 2.f);
+	EXPECT_EQ(decodedData.dirZ, 3.f);
+
+	EXPECT_EQ(decodedData.upX, 10.f);
+	EXPECT_EQ(decodedData.upY, 20.f);
+	EXPECT_EQ(decodedData.upZ, 30.f);
+
+	EXPECT_EQ(decodedData.type, 1);
+
+	EXPECT_EQ(decodedData.orthographicScale, 6.f);
+
+	EXPECT_EQ(decodedData.clipStart, 0.001f);
+	EXPECT_EQ(decodedData.clipEnd, 100.f);
+
+	EXPECT_EQ(decodedData.aspectRatio, 1.5f);
+
+	EXPECT_EQ(decodedData.sensorFitType, 2);
+	EXPECT_EQ(decodedData.sensorWidth, 13.f);
+	EXPECT_EQ(decodedData.sensorHeight, 23.f);
 
 }
 
@@ -299,6 +398,45 @@ TEST(deviationLogger, logMesh)
 
 }
 
+TEST(deviationLogger, logCamera)
+{
+
+	prepareDatabase();
+
+	UACE::DeviationLogger devLogger("loggerDatabase.sqlite");
+	EXPECT_TRUE(devLogger.getIsReady());
+	if (!devLogger.getIsReady())
+	{
+		return;
+	}
+
+	const auto rawData{ createCameraData() };
+	{
+		const auto bLoaded{ devLogger.setCamera(1, rawData) };
+		EXPECT_FALSE(bLoaded);
+	}
+
+	const auto objectHashName{ UACE::ViewerUtils::hashString("CameraName") };
+	const auto objId{ devLogger.logNewObject(objectHashName, 0) };
+
+	const auto bLoaded{ devLogger.setCamera(objId, rawData) };
+	EXPECT_TRUE(bLoaded);
+
+	{
+		std::array<char, 2> loadedCamera{};
+		const auto bCameraLoaded{ devLogger.getCamera(objId, loadedCamera) };
+		EXPECT_FALSE(bCameraLoaded);
+	}
+
+	{
+		std::array<char, sizeof(rawData)> loadedCamera{};
+		const auto bCameraLoaded{ devLogger.getCamera(objId, loadedCamera) };
+		EXPECT_TRUE(bCameraLoaded);
+		EXPECT_EQ(loadedCamera, rawData);
+	}
+
+}
+
 TEST(deviationDecoder, decodeFromClient)
 {
 
@@ -452,7 +590,10 @@ TEST(deviationDecoder, decodeFromClient)
 
 	};
 
-	UACE::Deviation::Desc desc{ cbOnCreation, onDeletion, cbOnRename, cbOnTransform, cbOnMesh };
+	const auto onCamera = [](size_t, std::span<const char>)
+	{	};
+
+	UACE::Deviation::Desc desc{ cbOnCreation, onDeletion, cbOnRename, cbOnTransform, cbOnMesh, onCamera };
 
 	UACE::DeviationDecoder devDecoder(&ubAlloc, desc, "loggerDatabase.sqlite", "127.0.0.1", 6000);
 
@@ -513,7 +654,6 @@ TEST(deviationDecoder, decodeFromClient)
 
 	while (!bComplete0) { devDecoder.tick(); }
 
-
 	constexpr char jsonTransform[]{ "\
 		{\"PkgType\": \"Deviation\",\
 		\"ObjectName\" : \"ObjBase\",\
@@ -547,5 +687,122 @@ TEST(deviationDecoder, decodeFromClient)
 	server.sendData(aMeshData);
 
 	while (!bComplete1) { devDecoder.tick(); }
+
+}
+
+TEST(deviationDecoder, decodeCamera)
+{
+
+	prepareDatabase();
+	UACE::DeviationLogger logger("loggerDatabase.sqlite");
+
+	namespace umem = UACE::MemManager;
+	using ump = umem::Pool;
+
+	umem::Pool pool(1_kb);
+	umem::Domain* domain{ pool.createDomain(1_kb) };
+	EXPECT_NE(domain, nullptr);
+
+	namespace upa = umem::UnifiedBlockAllocator;
+	upa::UnifiedBlockAllocator ubAlloc{ upa::createAllocator(domain, 1_kb) };
+	EXPECT_TRUE(ubAlloc.getIsValid());
+
+	BasicTCPServer server(6000);
+
+	const auto cbOnCreation = [](size_t, size_t, bool)
+	{	};
+
+	const auto cbOnRename = [](size_t, size_t, size_t, size_t, bool)
+	{	};
+
+	const auto onDeletion = [](size_t )
+	{	};
+
+	const auto cbOnTransform = [](size_t, char*, size_t)
+	{	};
+
+	const auto cbOnMesh = [](size_t, char*, size_t)
+	{	};
+
+	bool bComplete{ false };
+	const auto onCamera = [&logger, &bComplete](size_t objId, std::span<const char> rawCameraData)
+	{
+
+		EXPECT_EQ(objId, 1);
+
+		const auto oCamData{ UACE::PkgBlobCoder::decodeCamera(rawCameraData) };
+		EXPECT_TRUE(oCamData.has_value());
+		const auto cData{ oCamData.value() };
+
+		EXPECT_EQ(cData.posX, 5.f);
+		EXPECT_EQ(cData.posY, 6.f);
+		EXPECT_EQ(cData.posZ, -7.f);
+
+		EXPECT_EQ(cData.dirX, 1.f);
+		EXPECT_EQ(cData.dirY, 2.f);
+		EXPECT_EQ(cData.dirZ, 3.f);
+
+		EXPECT_EQ(cData.upX, 10.f);
+		EXPECT_EQ(cData.upY, 20.f);
+		EXPECT_EQ(cData.upZ, 30.f);
+
+		EXPECT_EQ(cData.type, 1);
+
+		EXPECT_EQ(cData.orthographicScale, 6.f);
+
+		EXPECT_EQ(cData.clipStart, 0.001f);
+		EXPECT_EQ(cData.clipEnd, 100.f);
+
+		EXPECT_EQ(cData.aspectRatio, 1.5f);
+
+		EXPECT_EQ(cData.sensorFitType, 2);
+		EXPECT_EQ(cData.sensorWidth, 13.f);
+		EXPECT_EQ(cData.sensorHeight, 23.f);
+
+		std::array<char, 62> aLoadedCamera{};
+		EXPECT_EQ(aLoadedCamera.size(), rawCameraData.size());
+
+		const auto bLoaded{ logger.getCamera(objId, aLoadedCamera) };
+		EXPECT_TRUE(bLoaded);
+		EXPECT_EQ(std::strncmp(aLoadedCamera.data(), rawCameraData.data(), rawCameraData.size()), 0);
+
+		bComplete = true;
+
+	};
+
+	UACE::Deviation::Desc desc{ cbOnCreation, onDeletion, cbOnRename, cbOnTransform, cbOnMesh, onCamera };
+
+	UACE::DeviationDecoder devDecoder(&ubAlloc, desc, "loggerDatabase.sqlite", "127.0.0.1", 6000);
+
+	const auto createBuffer = []<size_t size>(const char(&charArray)[size])
+	{
+		std::array<char, size - 1> sendData{};
+		memcpy(sendData.data(), charArray, sendData.size());
+		return sendData;
+	};
+
+	constexpr char jsonCreateCamera[]{ "\
+		{\"PkgType\": \"Deviation\",\
+		\"ObjectName\" : \"Cam1\",\
+		\"DeviationType\" : \"Creation\",\
+		\"DeviationId\" : 1,\
+		\"ObjectType\" : \"Entity\"}\
+" };
+
+	server.sendData(std::to_array(jsonCreateCamera));
+	server.sendData(createBuffer(""));
+
+	constexpr char jsonCameraData[]{ "\
+		{\"PkgType\": \"Deviation\",\
+		\"ObjectName\" : \"Cam1\",\
+		\"DeviationType\" : \"Camera\",\
+		\"DeviationId\" : 2,\
+		\"ObjectType\" : \"Entity\"}\
+" };
+
+	server.sendData(std::to_array(jsonCameraData));
+	server.sendData(createCameraData());
+
+	while (!bComplete) { devDecoder.tick(); }
 
 }

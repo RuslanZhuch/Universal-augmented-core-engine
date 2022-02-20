@@ -202,6 +202,52 @@ export namespace UACE
 
 		}
 
+		[[nodiscard]] bool setCamera(size_t objId, std::span<const char> data)
+		{
+
+			const auto bExist{ this->getObjectExist(objId) };
+			if (!bExist)
+			{
+				return false;
+			}
+
+			const std::string_view query{
+				this->createStatement("UPDATE ObjectsCacheData SET Data=? WHERE Id=?") };
+
+			SQLite::Statement s(this->db, query.data());
+			s.bindNoCopy(1, data.data(), data.size());
+			s.bind(2, objId);
+
+			s.executeStep();
+
+			return true;
+
+		}
+
+		[[nodiscard]] bool getCamera(size_t objId, std::span<char> data)
+		{
+
+			const std::string_view query{ this->createStatement("SELECT Data FROM ObjectsCacheData WHERE Id = '{}'", objId) };
+
+			SQLite::Statement s(this->db, query.data());
+
+			s.executeStep();
+			if (!s.hasRow())
+				return false;
+
+			const auto col{ s.getColumn(0) };
+			const auto blobSize{ col.getBytes() };
+			if (blobSize != data.size())
+			{
+				return false;
+			}
+
+			std::memcpy(data.data(), col.getBlob(), blobSize);
+
+			return true;
+
+		}
+
 		void removeObject(size_t objId)
 		{
 			{
