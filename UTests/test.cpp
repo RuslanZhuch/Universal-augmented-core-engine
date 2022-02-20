@@ -389,7 +389,7 @@ TEST(Utils, Queue)
 	upa::UnifiedBlockAllocator ubAlloc{ upa::createAllocator(domain, 1_kb) };
 	EXPECT_TRUE(ubAlloc.getIsValid());
 
-	UACE::UTILS::Queue<int, 4> queue(&ubAlloc);
+	UACE::UTILS::Queue<int, 4, upa::UnifiedBlockAllocator> queue(&ubAlloc);
 	EXPECT_EQ(queue.getMaxEls(), 4);
 
 	std::array<char, 32_b> aOut{};
@@ -477,7 +477,7 @@ TEST(Utils, QueueMultithread)
 	upa::UnifiedBlockAllocator ubAlloc{ upa::createAllocator(domain, 1_kb) };
 	EXPECT_TRUE(ubAlloc.getIsValid());
 
-	UACE::UTILS::Queue<int, 4> queue(&ubAlloc);
+	UACE::UTILS::Queue<int, 4, upa::UnifiedBlockAllocator> queue(&ubAlloc);
 
 	std::atomic_flag afNeedExit{};
 	std::atomic_flag afConsReady{};

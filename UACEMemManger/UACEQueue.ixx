@@ -6,14 +6,12 @@ module;
 
 export module UACEQueue;
 
-import UACEUnifiedBlockAllocator;
-
-using ubAlloc = UACE::MemManager::UnifiedBlockAllocator::UnifiedBlockAllocator;
+import UACEAllocator;
 
 export namespace UACE::UTILS
 {
 
-	template<typename T, size_t size>
+	template<typename T, size_t size, UACE::MemManager::Allocator Alloc>
 	class Queue
 	{
 
@@ -26,7 +24,7 @@ export namespace UACE::UTILS
 		};
 
 	public:
-		constexpr Queue(ubAlloc* allocator)
+		constexpr Queue(Alloc* allocator)
 			:allocator(allocator)
 		{
 
@@ -42,7 +40,7 @@ export namespace UACE::UTILS
 				return false;
 			}
 			const auto wrappedIndex{ this->computeWrappedIndex(this->currBufferIndex) };
-			auto node{ this->allocator->create<Node<T>>() };
+			auto node{ this->allocator->template create<Node<T>>() };
 			auto data{ this->allocator->create<T>(val) };
 			node->val = data;
 			if (this->head == nullptr)
@@ -97,7 +95,7 @@ export namespace UACE::UTILS
 		[[nodiscard]] constexpr auto computeWrappedIndex(size_t val) { return val % size; }
 
 	private:
-		ubAlloc* allocator{ nullptr };
+		Alloc* allocator{ nullptr };
 
 		Node<T>* head{ nullptr };
 		Node<T>* tail{ nullptr };
