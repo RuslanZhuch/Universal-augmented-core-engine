@@ -21,6 +21,7 @@
   <ItemGroup>
     <ClCompile Include="UACEDirectoryHeader.ixx" />
     <ClCompile Include="UACEMapDistributor.ixx" />
+    <ClCompile Include="UACEMapStreamer.ixx" />
     <ClCompile Include="UACEMeshDataCache.ixx" />
     <ClCompile Include="UACEStaticMeshHeader.ixx" />
   </ItemGroup>

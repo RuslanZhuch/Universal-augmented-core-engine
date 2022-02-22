@@ -5,13 +5,15 @@ module;
 export module UACEMapDistributor;
 import UACEAllocator;
 import UACECoreDataStructs;
+import UACEMapStreamer;
 
 export namespace UACE::Map
 {
 
-	template <UACE::MemManager::Allocator Alloc, typename Streamer>
+	template <UACE::MemManager::Allocator Alloc>
 	class Distributor
 	{
+		using Streamer = UACE::Map::Streamer<Alloc>;
 	public:
 		explicit constexpr Distributor(Alloc* alloc, Streamer* streamer)
 			:alloc(alloc), streamer(streamer)
@@ -19,32 +21,45 @@ export namespace UACE::Map
 			
 		}
 
-		constexpr void onObjectCreated(size_t objId)
+		constexpr auto onObjectCreated(size_t objId)
 		{
 			if (this->streamer == nullptr)
-				return;
-			this->streamer->createStaticObject(objId);
+				return false;
+			return this->streamer->sendCreateObject({ .objId = 1 });
 		}
 
-		constexpr void onDeleteObject(size_t objId)
+		constexpr auto onDeleteObject(size_t objId)
 		{
 			if (this->streamer == nullptr)
-				return;
-			this->streamer->deleteStaticObject(objId);
+				return false;
+			return this->streamer->sendDeleteObject({ .objId = objId });
 		}
 
-		constexpr void onSetObjectTransform(size_t objId, UACE::Structs::Mat4x4 auto && mat)
+		constexpr auto onSetObjectTransform(size_t objId, UACE::Structs::Mat4x4 auto && mat)
 		{
 			if (this->streamer == nullptr)
-				return;
-			this->streamer->sendTransformData(objId, std::forward<decltype(mat)>(mat));
+				return false;
+			UACE::Map::StreamerPkg::Transform pkg;
+			pkg.objId = objId;
+			std::memcpy(pkg.matBuffer.data(), &mat, sizeof(mat));
+			return this->streamer->sendTransformData(pkg);
 		}
 
-		constexpr void onSetMesh(size_t objId, std::span<const char> blob)
+		constexpr auto onSetMesh(size_t objId, std::span<const char> blob)
 		{
 			if (this->streamer == nullptr)
-				return;
-			this->streamer->sendMeshData(objId, blob);
+				return false;
+			UACE::Map::StreamerPkg::MeshData pkg;
+			pkg.objId = objId;
+			pkg.blob = blob;
+			return this->streamer->sendMeshData(pkg);
+		}
+		 
+		constexpr auto onSetCameraData(size_t objId, UACE::Structs::CameraData camData)
+		{
+			if (this->streamer == nullptr)
+				return false;
+			return this->streamer->sendCameraData({ .objId = objId, .camera = camData });
 		}
 
 	private:

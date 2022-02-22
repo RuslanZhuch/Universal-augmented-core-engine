@@ -10,14 +10,19 @@ export namespace UACE::MemManager
 export namespace UACE::MemManager::Literals
 {
 
-	constexpr unsigned int operator "" _b(unsigned long long in)
+	consteval unsigned int operator "" _B(unsigned long long in)
 	{
 		return static_cast<unsigned int>(in);
 	}
 
-	constexpr unsigned int operator "" _kb(unsigned long long in)
+	consteval unsigned int operator "" _kB(unsigned long long in)
 	{
 		return static_cast<unsigned int>(in) * 1024;
+	}
+
+	consteval unsigned int operator "" _MB(unsigned long long in)
+	{
+		return static_cast<unsigned int>(in) * 1024 * 1024;
 	}
 
 }

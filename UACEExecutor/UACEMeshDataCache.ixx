@@ -23,7 +23,7 @@ export namespace UACE::Map
 		[[nodiscard]] constexpr bool prepare(UACE::MemManager::MemSize bytes)
 		{
 			this->ptr = this->alloc->template createRaw<char>(bytes);
-			return this->ptr.allocPtr;
+			return this->ptr.allocPtr != nullptr;
 		}
 
 		[[nodiscard]] constexpr bool set(std::span<char> inData)

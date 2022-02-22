@@ -30,7 +30,7 @@ export namespace UACE::UTILS
 
 		}
 
-		[[nodiscard]] bool push(const T& val)
+		[[nodiscard]] constexpr bool push(const T& val)
 		{
 
 			std::lock_guard gl(this->m);
@@ -60,13 +60,13 @@ export namespace UACE::UTILS
 			return true;
 		}
 
-		[[nodiscard]] bool pop(std::span<char> outBuffer)
+		[[nodiscard]] bool pop(T* outObject)
 		{
 
 			std::lock_guard gl(this->m);
 
 			const auto needSize{ sizeof(T) };
-			if ((this->numOfElements == 0) || (needSize > outBuffer.size()))
+			if (this->numOfElements == 0)
 			{
 				return false;
 			}
@@ -77,7 +77,7 @@ export namespace UACE::UTILS
 			auto outData{ node->val };
 			this->allocator->free(node);
 
-			std::memcpy(outBuffer.data(), outData, needSize);
+			std::memcpy(outObject, outData, needSize);
 			this->allocator->free(outData);
 
 			this->numOfElements--;

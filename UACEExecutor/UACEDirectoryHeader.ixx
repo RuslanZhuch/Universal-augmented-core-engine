@@ -26,7 +26,6 @@ export namespace UACE::Map
 			uint32_t point{};
 		};
 
-
 	public:
 		explicit DirectoryHeader(Alloc* alloc, uint32_t numOfElements) 
 			: dataPtr(alloc->createRaw<Element>(numOfElements))

@@ -18,5 +18,8 @@
     <ClCompile Include="UACEMapDistributor.ixx">
       <Filter>Lib</Filter>
     </ClCompile>
+    <ClCompile Include="UACEMapStreamer.ixx">
+      <Filter>Lib</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

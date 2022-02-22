@@ -1,5 +1,6 @@
 module;
 #include <cstdlib>
+#include <cstring>
 export module UACEArray;
 
 import UACEAllocator;
@@ -29,7 +30,7 @@ export namespace UACE::Containers
 			if ((this->currSize < capacity - 1) && (this->dataPtr.ptr != nullptr))
 			{
 //				const auto byteOffset{ this->currSize * sizeof(T) };
-				memcpy(this->dataPtr.ptr + this->currSize, &data, sizeof(T));
+				std::memcpy(this->dataPtr.ptr + this->currSize, &data, sizeof(T));
 				this->currSize++;
 			}
 			return this->currSize;

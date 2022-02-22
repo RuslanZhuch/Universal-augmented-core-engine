@@ -1,6 +1,8 @@
 module;
 #include <cmath>
 #include <type_traits>
+
+#include <format>
 export module UACERingBuffer;
 
 export import UACEAllocator;
@@ -10,17 +12,17 @@ constexpr size_t HEADER_SIZE{ sizeof(size_t) };
 export namespace UACE
 {
 
-	template <size_t capacity, UACE::MemManager::Allocator Alloc, typename T = char>
+	template <UACE::MemManager::Allocator Alloc, typename T = char>
 	class RingBuffer
 	{
 
 	public:
-		explicit constexpr RingBuffer(Alloc* alloc)
+		explicit constexpr RingBuffer(Alloc* alloc, size_t capacity)
 			:alloc(alloc), 
 			dataPtr(alloc->createRaw<T>(capacity)), 
-			freespaceLeft(capacity - HEADER_SIZE)
+			freespaceLeft(capacity - HEADER_SIZE),
+			capacity(capacity)
 		{
-			static_assert(capacity > HEADER_SIZE);
 			static_assert(std::is_same_v<T, char>);
 			this->writePtr = reinterpret_cast<char*>(this->dataPtr.ptr);
 			this->readPtr = reinterpret_cast<char*>(this->dataPtr.ptr);
@@ -56,22 +58,34 @@ export namespace UACE
 		[[nodiscard]] constexpr size_t copyAndPop(T* destPtr, size_t destSize)
 		{
 
+			auto rootPtr{ this->dataPtr.ptr };
+			//Check for wrapping
+			{
+				if (this->readPtr == this->wrapAddress)
+				{
+					const auto rightSize{ this->capacity - (this->readPtr - rootPtr) };
+					this->freespaceLeft += rightSize;
+					this->wrapAddress = nullptr;
+					this->readPtr = rootPtr;
+				}
+			}
+
 			//Read header
 			size_t pkgSize{ 0 };
 			memcpy(&pkgSize, this->readPtr, HEADER_SIZE);
 
-			if ((this->readPtr == this->writePtr) || (destSize < pkgSize) || (this->freespaceLeft == capacity))
+			if ((this->readPtr == this->writePtr) || (destSize < pkgSize) || (this->freespaceLeft == this->capacity))
 			{
+				//system(std::format("echo eq: {}, less {}, free==cap {}\n", this->readPtr == this->writePtr, destSize < pkgSize, this->freespaceLeft == capacity).c_str());
 				return 0;
 			}
 
 			this->readPtr = this->movePointer(this->readPtr, HEADER_SIZE);
 
-			auto rootPtr{ this->dataPtr.ptr };
 
 			{
 				//First part
-				const auto rightSize{ capacity - (this->readPtr - rootPtr) };
+				const auto rightSize{ this->capacity - (this->readPtr - rootPtr) };
 				const auto rightSizeToCopy{ std::min(rightSize, pkgSize) };
 				memcpy(destPtr, this->readPtr, rightSizeToCopy);
 				this->readPtr = this->movePointer(this->readPtr, rightSizeToCopy);
@@ -84,17 +98,7 @@ export namespace UACE
 				this->freespaceLeft += pkgSize + HEADER_SIZE;
 			}
 
-			//Check for wrapping
-			{
-				if (this->readPtr == this->wrapAddress)
-				{
-					const auto rightSize{ capacity - (this->readPtr - rootPtr) };
-					this->freespaceLeft += rightSize;
-					this->wrapAddress = nullptr;
-					this->readPtr = rootPtr;
-				}
-			}
-
+			//system(std::format("echo Space left {}\n", this->freespaceLeft).c_str());
 			return pkgSize;
 
 		}
@@ -104,10 +108,11 @@ export namespace UACE
 		{
 
 			auto rootPtr{ this->dataPtr.ptr };
-			const auto rightSize{ capacity - (this->writePtr - rootPtr) };
+			const auto rightSize{ this->capacity - (this->writePtr - rootPtr) };
 
 			if (rightSize < needSize)
 			{
+				//system(std::format("echo wrap\n").c_str());
 				this->freespaceLeft -= rightSize;
 				this->wrapAddress = this->writePtr;
 				this->writePtr = rootPtr;
@@ -115,13 +120,13 @@ export namespace UACE
 
 		}
 
-		[[nodiscard]] constexpr char* movePointer(char* currPointer, int steps)
+		[[nodiscard]] constexpr char* movePointer(char* currPointer, size_t steps)
 		{
 			auto rootPtr{ reinterpret_cast<char*>(this->dataPtr.ptr) };
 			const auto absOffset{ currPointer - rootPtr + steps};
-			if (absOffset >= capacity)
+			if (absOffset >= this->capacity)
 			{
-				const auto rootOffset{ absOffset - capacity };
+				const auto rootOffset{ absOffset - this->capacity };
 				return rootPtr + rootOffset;
 			}
 			else
@@ -132,6 +137,8 @@ export namespace UACE
 
 	private:
 		MemManager::Ptr<T, Alloc> dataPtr;
+
+		size_t capacity{};
 
 		size_t freespaceLeft{};
 		Alloc* alloc{ nullptr };

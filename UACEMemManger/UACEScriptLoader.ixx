@@ -22,7 +22,7 @@ export namespace UACE::Script
 		const auto dataLen{ srcFile.tellg() };
 		srcFile.seekg(0, std::ios::beg);
 
-		std::array<char, 1_kb> fileData;
+		std::array<char, 1_kB> fileData;
 		srcFile.read(fileData.data(), dataLen);
 
 		auto decoder{ UACE::Script::Decoder(alloc) };

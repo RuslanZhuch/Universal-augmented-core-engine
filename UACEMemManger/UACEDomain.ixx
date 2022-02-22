@@ -30,7 +30,7 @@ export namespace UACE::MemManager
 		[[nodiscard]] constexpr MemSize reserveMemory(MemSize size)
 		{
 			
-			constexpr MemSize minMemBlock = 16_b;
+			constexpr MemSize minMemBlock = 16_B;
 			const auto numOfMemBlocks{ size / minMemBlock };
 			const auto fraction{ size % minMemBlock };
 			const auto bNeedExpand{ fraction > 0 };
