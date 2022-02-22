@@ -27,45 +27,15 @@ export namespace UACE::PkgBlobCoder
 
 	}
 
-	struct CameraData
+	[[nodiscard]] const std::optional<UACE::Structs::CameraData> decodeCamera(std::span<const char> blobData)
 	{
 
-		float posX{ 0.f };
-		float posY{ 0.f };
-		float posZ{ 0.f };
-
-		float dirX{ 1.f };
-		float dirY{ 0.f };
-		float dirZ{ 0.f };
-
-		float upX{ 0.f };
-		float upY{ 0.f };
-		float upZ{ 1.f };
-
-		char type{ 0 };
-
-		float orthographicScale{ 1.f };
-
-		float clipStart{ 1.f };
-		float clipEnd{ 10.f };
-
-		float aspectRatio{ 1.f };
-
-		char sensorFitType{ 0 };
-		float sensorWidth{ 24.f };
-		float sensorHeight{ 0.f };
-
-	};
-
-	[[nodiscard]] const std::optional<CameraData> decodeCamera(std::span<const char> blobData)
-	{
-
-		if ((blobData.data() == nullptr) || (blobData.size() != 62))
+		if ((blobData.data() == nullptr) || (blobData.size() != 49))
 		{
 			return std::nullopt;
 		}
 
-		CameraData camData{};
+		UACE::Structs::CameraData camData{};
 		auto point{ blobData.data() };
 		
 		const auto pullData = [](auto point, auto&& data)
@@ -79,13 +49,10 @@ export namespace UACE::PkgBlobCoder
 		point = pullData(point, camData.posY);
 		point = pullData(point, camData.posZ);
 
-		point = pullData(point, camData.dirX);
-		point = pullData(point, camData.dirY);
-		point = pullData(point, camData.dirZ);
-
-		point = pullData(point, camData.upX);
-		point = pullData(point, camData.upY);
-		point = pullData(point, camData.upZ);
+		point = pullData(point, camData.rotAngle);
+		point = pullData(point, camData.rotX);
+		point = pullData(point, camData.rotY);
+		point = pullData(point, camData.rotZ);
 
 		point = pullData(point, camData.type);
 
@@ -95,10 +62,7 @@ export namespace UACE::PkgBlobCoder
 		point = pullData(point, camData.clipEnd);
 
 		point = pullData(point, camData.aspectRatio);
-
-		point = pullData(point, camData.sensorFitType);
-		point = pullData(point, camData.sensorWidth);
-		point = pullData(point, camData.sensorHeight);
+		point = pullData(point, camData.fov);
 
 		return camData;
 		

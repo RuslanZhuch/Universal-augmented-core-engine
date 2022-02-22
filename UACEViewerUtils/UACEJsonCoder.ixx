@@ -7,6 +7,8 @@ module;
 #include "rapidjson/include/rapidjson/document.h"
 #include "rapidjson/include/rapidjson/writer.h"
 
+#include <cassert>
+
 export module UACEJsonCoder;
 
 export namespace UACE::JsonCoder
@@ -22,6 +24,13 @@ export namespace UACE::JsonCoder
 		LAST_DEVIATION_ID = 2
 	};
 
+	enum class ObjectType
+	{
+		NONE,
+		CAMERA,
+		MESH
+	};
+
 	struct PkgNone
 	{
 
@@ -32,7 +41,7 @@ export namespace UACE::JsonCoder
 		uint32_t deviationId{};
 		lstr_t<32> objectName{};
 		lstr_t<32> deviationType{};
-		lstr_t<32> objectType{};
+		ObjectType objectType{};
 	};
 
 	struct PkgLastDeviationId
@@ -78,7 +87,8 @@ namespace UACE::JsonCoder
 		}
 		else
 		{
-			static_assert(false, "Cannot parse JSON of current type");
+			assert(false);
+			//static_assert(false, "Cannot parse JSON of current type");
 		}
 
 	}
@@ -101,7 +111,7 @@ export namespace UACE::JsonCoder
 	{
 
 		rapidjson::Document doc;
-		doc.Parse(str.data());
+		doc.Parse(str.data(), str.size());
 		if (!doc.IsObject())
 		{
 			return PkgNone();
@@ -144,12 +154,17 @@ export namespace UACE::JsonCoder
 			bool bSuccess{ true };
 			bSuccess = bSuccess && filllstr(pkg.deviationType, oDevType.value());
 			bSuccess = bSuccess && filllstr(pkg.objectName, oObjName.value());
-			bSuccess = bSuccess && filllstr(pkg.objectType, oObjType.value());
+			bSuccess = bSuccess && oObjType.has_value();
 
 			if (!bSuccess)
 			{
 				return PkgNone();
 			}
+
+			if (const auto objType{ oObjType.value_or("") }; std::strcmp(objType.data(), "CAMERA") == 0)
+				pkg.objectType = ObjectType::CAMERA;
+			else if (std::strcmp(objType.data(), "MESH") == 0)
+				pkg.objectType = ObjectType::MESH;
 
 			return pkg;
 

@@ -1,6 +1,3 @@
-[submodule "asio"]
-	path = asio
-	url = https://github.com/chriskohlhoff/asio.git
 [submodule "UACEViewerUtils/rapidjson"]
 	path = UACEViewerUtils/rapidjson
 	url = https://github.com/Tencent/rapidjson.git
@@ -10,3 +7,9 @@
 [submodule "PurrViewer/imgui"]
 	path = PurrViewer/imgui
 	url = https://github.com/ocornut/imgui.git
+[submodule "UACEViewerUtils/evpp"]
+	path = UACEViewerUtils/evpp
+	url = https://github.com/Qihoo360/evpp.git
+[submodule "UACEViewerUtils/sockpp"]
+	path = UACEViewerUtils/sockpp
+	url = https://github.com/fpagliughi/sockpp.git

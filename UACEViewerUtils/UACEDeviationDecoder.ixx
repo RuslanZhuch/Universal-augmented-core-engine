@@ -19,7 +19,9 @@ using namespace UACE::MemManager::Literals;
 export namespace UACE::Deviation
 {
 
-	template <typename OnCreation,
+	template <
+		typename OnCameraCreation,
+		typename OnStaticMeshCreation,
 		typename OnDeletion,
 		typename OnRename,
 		typename OnTransform,
@@ -28,7 +30,8 @@ export namespace UACE::Deviation
 	>
 	struct Desc
 	{
-		OnCreation cbOnCreation {};
+		OnCameraCreation cbOnCameraCreation {};
+		OnStaticMeshCreation cbOnStaticMeshCreation {};
 		OnDeletion cbOnDeletion {};
 		OnRename cbOnRename {};
 		OnTransform cbOnTransform {};
@@ -39,11 +42,12 @@ export namespace UACE::Deviation
 	template<typename Desc>
 	concept DeviationDesc = requires(Desc && d)
 	{
-		requires std::is_invocable_v<decltype(d.cbOnCreation), size_t, size_t, bool>;
+		requires std::is_invocable_v<decltype(d.cbOnCameraCreation), size_t, std::span<const char>>;
+		requires std::is_invocable_v<decltype(d.cbOnStaticMeshCreation), size_t, std::span<const char>>;
 		requires std::is_invocable_v<decltype(d.cbOnDeletion), size_t>;
 		requires std::is_invocable_v<decltype(d.cbOnRename), size_t, size_t, size_t, size_t, bool>;
-		requires std::is_invocable_v<decltype(d.cbOnTransform), size_t, char*, size_t>;
-		requires std::is_invocable_v<decltype(d.cbOnMesh), size_t, char*, size_t>;
+		requires std::is_invocable_v<decltype(d.cbOnTransform), size_t, std::span<const char>>;
+		requires std::is_invocable_v<decltype(d.cbOnMesh), size_t, std::span<const char>>;
 		requires std::is_invocable_v<decltype(d.cbOnCamera), size_t, std::span<const char>>;
 	};
 
@@ -61,8 +65,14 @@ export namespace UACE
 	public:
 
 		DeviationDecoder() = delete;
-		explicit constexpr DeviationDecoder(Alloc* alloc, const DevDesc& desc, const std::string_view dbFile, const std::string_view ip, int port)
-			:desc(desc), client(alloc, ip, port)
+		explicit constexpr DeviationDecoder(
+			Alloc* alloc, 
+			const DevDesc& desc, 
+			const std::string_view dbFile, 
+			const std::string_view ip, 
+			int port,
+			size_t bufferSize = 1_kB)
+			:desc(desc), client(alloc, ip, port, bufferSize)
 		{
 			std::memset(this->dbName, 0, sizeof(this->dbName));
 			std::memcpy(this->dbName, dbFile.data(), dbFile.size());
@@ -93,27 +103,24 @@ export namespace UACE
 				{
 					const auto objId{ logger.getObjectId(hashObjectId) };
 					if (logger.setObjectTransform(objId, { recPkg.data(), recSize1 }))
-						this->desc.cbOnTransform(objId, this->recPkg.data(), recSize1);
+						this->desc.cbOnTransform(objId, { recPkg.data(), recSize1 });
 				}
 				else if (strcmp(pkg->deviationType.data(), "Mesh") == 0)
 				{
 					const auto objId{ logger.getObjectId(hashObjectId) };
 					if (logger.setObjectMesh(objId, { recPkg.data(), recSize1 }))
-						this->desc.cbOnMesh(objId, this->recPkg.data(), recSize1);
+						this->desc.cbOnMesh(objId, { recPkg.data(), recSize1 });
 				}
 				else if (strcmp(pkg->deviationType.data(), "Creation") == 0)
 				{
-					const auto baseObjectName{ std::string_view(recPkg.data(), recSize1) };
-					const auto hashBaseObjectId{ UACE::ViewerUtils::hashString(baseObjectName) };
+					const auto metadata{ std::string_view(recPkg.data(), recSize1) };
+					const auto newObjId{ logger.logNewObject(hashObjectId, metadata) };
 
-					const auto newObjId{ logger.logNewObject(hashObjectId, hashBaseObjectId) };
-					size_t baseObjId{ 0 };
-					if (hashBaseObjectId != 0)
-					{
-						baseObjId = logger.getObjectId(hashBaseObjectId);
-					}
 
-					this->desc.cbOnCreation(newObjId, baseObjId, hashBaseObjectId != 0);
+					if (pkg->objectType == UACE::JsonCoder::ObjectType::CAMERA)
+						this->desc.cbOnCameraCreation(newObjId, metadata);
+					else if (pkg->objectType == UACE::JsonCoder::ObjectType::MESH)
+						this->desc.cbOnStaticMeshCreation(newObjId, metadata);
 				}
 				else if (strcmp(pkg->deviationType.data(), "Camera") == 0)
 				{
@@ -150,6 +157,9 @@ export namespace UACE
 					this->desc.cbOnRename(objId, objId, hashObjectId, hashNewNameId, true);
 				}
 
+				const auto devId{ pkg->deviationId };
+
+
 			}
 			else
 			{
@@ -166,7 +176,7 @@ export namespace UACE
 		DevDesc desc;
 		UACE::Client<Alloc> client;
 
-		std::array<char, 1_kb> recPkg{};
+		std::array<char, 1_kB> recPkg{};
 
 		char dbName[32];
 

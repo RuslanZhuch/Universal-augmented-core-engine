@@ -84,7 +84,7 @@ export namespace UACE
 
 		}
 
-		[[nodiscard]] auto logNewObject(size_t hashName, size_t baseObjHashName)
+		[[nodiscard]] auto logNewObject(size_t hashName, std::span<const char> metaData)
 		{
 
 			const auto lastId{ this->getLastId() };
@@ -92,17 +92,18 @@ export namespace UACE
 
 			{
 				const std::string_view query{
-					this->createStatement("INSERT INTO ObjectsList (Id, HashName, BaseObjId) VALUES ('{}', '{}', '{}')",
-					objId, hashName, baseObjHashName) };
+					this->createStatement("INSERT INTO ObjectsList (Id, HashName, BaseObjId) VALUES ('{}', '{}', NULL)",
+					objId, hashName) };
 				SQLite::Statement s(this->db, query.data());
 				s.executeStep();
 			}
 
 			{
 				const std::string_view query{
-					this->createStatement("INSERT INTO ObjectsCacheData (Id, Transform, Mesh) VALUES ('{}', NULL, NULL)",
+					this->createStatement("INSERT INTO ObjectsCacheData (Id, Transform, Data) VALUES ('{}', NULL, ?)",
 					objId) };
 				SQLite::Statement s(this->db, query.data());
+				s.bindNoCopy(1, metaData.data(), metaData.size());
 				s.executeStep();
 			}
 			
@@ -166,7 +167,7 @@ export namespace UACE
 			}
 
 			const std::string_view query{
-				this->createStatement("UPDATE ObjectsCacheData SET Mesh=? WHERE Id=?") };
+				this->createStatement("UPDATE ObjectsCacheData SET Data=? WHERE Id=?") };
 
 			SQLite::Statement s(this->db, query.data());
 			s.bindNoCopy(1, data.data(), data.size());
@@ -181,7 +182,7 @@ export namespace UACE
 		[[nodiscard]] bool getObjectMesh(size_t objId, std::span<char> data)
 		{
 
-			const std::string_view query{ this->createStatement("SELECT Mesh FROM ObjectsCacheData WHERE Id = '{}'", objId) };
+			const std::string_view query{ this->createStatement("SELECT Data FROM ObjectsCacheData WHERE Id = '{}'", objId) };
 
 			SQLite::Statement s(this->db, query.data());
 
