@@ -23,6 +23,7 @@
     <ClCompile Include="UACECoreDataStructs.ixx" />
     <ClCompile Include="UACEDeviationDecoder.ixx" />
     <ClCompile Include="UACEDeviationLogger.ixx" />
+    <ClCompile Include="UACEGuardCopy.ixx" />
     <ClCompile Include="UACEJsonCoder.ixx" />
     <ClCompile Include="UACEPkgBlobCoder.ixx" />
     <ClCompile Include="UACEViewerUtils.ixx" />
@@ -33,7 +34,7 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="asio_includes.h" />
+    <ClInclude Include="WinsockTCP.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
@@ -92,7 +93,7 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(ProjectDir)include;$(SolutionDir)asio\asio;$(IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir)include;$(IncludePath)</IncludePath>
     <SourcePath>$(ProjectDir)src\sqlite3;$(SourcePath)</SourcePath>
     <RunCodeAnalysis>false</RunCodeAnalysis>
     <EnableClangTidyCodeAnalysis>false</EnableClangTidyCodeAnalysis>

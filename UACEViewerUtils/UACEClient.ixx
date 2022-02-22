@@ -1,7 +1,5 @@
 module;
 
-#include "asio_includes.h"
-
 #include <string_view>
 #include <array>
 
@@ -9,8 +7,15 @@ module;
 #include <atomic>
 
 #include <mutex>
+#include <cassert>
+
+#include "WinsockTCP.h"
+
+//#include "include/sockpp/tcp_connector.h"
+
 
 export module UACEClient;
+import UACEJsonCoder;
 
 //For Ptr
 import UACEAllocator;
@@ -26,34 +31,61 @@ export namespace UACE
 
 	public:
 
-		explicit constexpr Client(Alloc* alloc, std::string_view ip, int port)
-			:buffer(alloc), sock(ios)
+		explicit constexpr Client(Alloc* alloc, std::string_view ip, int port, size_t bufferSize = 1_kB)
+			:buffer(alloc, bufferSize)
 		{
 
-			asio::ip::tcp::endpoint endpoint(asio::ip::address::from_string(ip.data()), port);
-			
-			asio::error_code connError{};
-			this->sock.connect(endpoint, connError);
-			if (connError.value() != 0)
+			WSADATA wsaData;
+			WORD DllVersion = MAKEWORD(2, 2);
+			if (auto result{ WSAStartup(DllVersion, &wsaData) }; result != 0)
 			{
+				assert(result == 0);
+			}
+	
+			std::string getInput = "";
+			SOCKADDR_IN addr;
+			int addrLen = sizeof(addr);
+			addr.sin_addr.s_addr = inet_addr(ip.data());
+			addr.sin_port = htons(port);
+			addr.sin_family = AF_INET;
+
+			this->sock = socket(AF_INET, SOCK_STREAM, NULL);
+
+			SecureZeroMemory((PVOID)&this->recvOverlapped, sizeof(WSAOVERLAPPED));
+			this->recvOverlapped.hEvent = WSACreateEvent();
+			if (this->recvOverlapped.hEvent == NULL) {
+				const auto errorCode{ WSAGetLastError() };
 				assert(false);
 			}
+
+			const auto connectResult{ connect(this->sock, (SOCKADDR*)&addr, addrLen) };
+			if (connectResult != 0)
+			{
+				const auto errorCode{ WSAGetLastError() };
+				assert(false);
+			}
+
+			const unsigned int headerData{ 0xFA'FB'FC'FD };
+			send(this->sock, reinterpret_cast<const char*>(&headerData), sizeof(headerData), 0);
+			constexpr char awaitString[]{ "\
+					{\"ClientType\": \"CEngine\",\
+					\"ClientName\" : \"NameEngine0\",\
+					\"LastDeviationId\" : -1}\
+				" };
+			const auto pkgLen{ sizeof(awaitString) };
+			send(this->sock, reinterpret_cast<const char*>(&pkgLen), sizeof(pkgLen), 0);
+			send(this->sock, awaitString, pkgLen, 0);
 
 			this->thProcess = std::jthread([&](std::stop_token stoken)
 				{
 
-					auto iosThread{ std::jthread([this](std::stop_token stoken)
-					{
-						while (!stoken.stop_requested())
-						{
-							this->ios.run();
-						}
-					}) };
-
 					while (!stoken.stop_requested())
 					{
-						this->proceed(sock, stoken);
+						this->proceed(stoken);
 					}
+
+					closesocket(this->sock);
+					WSACleanup();
 
 				});
 
@@ -70,40 +102,66 @@ export namespace UACE
 			}
 
 			const auto copiedSize{ this->buffer.copyAndPop(destBuffer, destBufferSize) };
+			
 			this->atNumOfPkgs--;
 			return copiedSize;
 
 		}
 
-	private:
-		[[nodiscard]] constexpr bool read(auto& stoken, const auto& buffer, size_t transferSize)
+		[[nodiscard]] void sendDeviationId(int devId)
 		{
-			size_t bytesReaded{ 0 };
-			std::atomic_flag flComplete{};
-			asio::async_read(
-				this->sock,
-				buffer,
-				asio::transfer_exactly(transferSize),
-				[&bytesReaded, &flComplete](const asio::error_code& er, std::size_t transfered)
-				{
-					bytesReaded = transfered;
-					flComplete.test_and_set();
-					flComplete.notify_one();
-				});
 
-			while (!stoken.stop_requested() && flComplete.test() == false) {}
-			if (stoken.stop_requested())
-			{
-				return false;
-			}
-			return transferSize == bytesReaded;
+			const unsigned int headerData{ 0xFA'FB'FC'FD };
+			send(this->sock, reinterpret_cast<const char*>(&headerData), sizeof(headerData), 0);
+
+			const auto pkg{ UACE::JsonCoder::encodeLastDeviationId(devId) };
+			const auto pkgLen{ pkg.size() };
+			send(this->sock, reinterpret_cast<const char*>(&pkgLen), sizeof(pkgLen), 0);
+
+			send(this->sock, reinterpret_cast<const char*>(pkg.data()), pkgLen, 0);
+
 		}
 
-		constexpr void proceed(auto& sock, auto stoken)
+	private:
+		[[nodiscard]] constexpr bool read(std::stop_token stoken, auto* pDest, size_t transferSize)
+		{
+			if (transferSize == 0)
+				return true;
+			//const auto bytesReaded{ recv(this->sock, reinterpret_cast<char*>(pDest), transferSize, MSG_WAITALL) };
+			//assert(bytesReaded != SOCKET_ERROR);
+			//return transferSize == bytesReaded;
+			
+			DWORD bytesReaded{ 0 };
+			DWORD flags{ MSG_WAITALL };
+
+			WSABUF dataBuf;
+			dataBuf.buf = reinterpret_cast<CHAR*>(pDest);
+			dataBuf.len = transferSize;
+
+			const auto startResult{ WSARecv(this->sock, &dataBuf, 1, &bytesReaded, &flags, &this->recvOverlapped, nullptr) };
+			if (const auto err{ WSAGetLastError() }; (startResult == SOCKET_ERROR) && (WSA_IO_PENDING != err)) 
+			{
+				assert(false);
+			}
+
+			while ((bytesReaded != transferSize) && (!stoken.stop_requested()))
+			{
+				const auto recResult{ WSAGetOverlappedResult(this->sock, &this->recvOverlapped, &bytesReaded, FALSE, &flags) };
+				if (const auto err{ WSAGetLastError() }; !recResult&& (err != WSA_IO_INCOMPLETE))
+				{
+					assert(false);
+				}
+			}
+			WSAResetEvent(this->recvOverlapped.hEvent);
+
+			return bytesReaded == transferSize;
+		}
+
+		constexpr void proceed(std::stop_token stoken)
 		{
 
 			unsigned int headData{ 0 };
-			if (!this->read(stoken, asio::buffer(&headData, sizeof(headData)), sizeof(headData)))
+			if (!this->read(stoken, &headData, sizeof(headData)))
 			{
 				return;
 			}
@@ -115,14 +173,14 @@ export namespace UACE
 			}
 
 			int pkgSize{ 0 };
-			if (!this->read(stoken, asio::buffer(&pkgSize, sizeof(pkgSize)), sizeof(pkgSize)))
+			if (!this->read(stoken, &pkgSize, sizeof(pkgSize)))
 			{
 				return;
 			}
 			auto writeBuffer{ this->buffer.append(pkgSize) };
 			assert(writeBuffer != nullptr);
 
-			if (!this->read(stoken, asio::buffer(writeBuffer, pkgSize), pkgSize))
+			if (!this->read(stoken, writeBuffer, pkgSize))
 			{
 				return;
 			}
@@ -134,10 +192,12 @@ export namespace UACE
 
 	private:
 
-		UACE::RingBuffer<1_kb, Alloc> buffer;
+		UACE::RingBuffer<Alloc> buffer;
 
-		asio::io_service ios;
-		asio::ip::tcp::socket sock;
+		SOCKET sock;
+		WSAOVERLAPPED recvOverlapped;
+		//asio::io_service ios;
+		//asio::ip::tcp::socket sock;
 
 		std::atomic_char8_t atNumOfPkgs{ 0 };
 

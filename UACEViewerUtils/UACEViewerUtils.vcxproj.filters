@@ -6,9 +6,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="UACEClient.ixx">
-      <Filter>Lib</Filter>
-    </ClCompile>
     <ClCompile Include="UACEJsonCoder.ixx">
       <Filter>Lib</Filter>
     </ClCompile>
@@ -27,9 +24,15 @@
     <ClCompile Include="UACECoreDataStructs.ixx">
       <Filter>Lib</Filter>
     </ClCompile>
+    <ClCompile Include="UACEClient.ixx">
+      <Filter>Lib</Filter>
+    </ClCompile>
+    <ClCompile Include="UACEGuardCopy.ixx">
+      <Filter>Lib</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="asio_includes.h">
+    <ClInclude Include="WinsockTCP.h">
       <Filter>Lib</Filter>
     </ClInclude>
   </ItemGroup>
