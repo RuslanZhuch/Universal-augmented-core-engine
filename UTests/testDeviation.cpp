@@ -4,11 +4,12 @@
 
 #include <array>
 #include <span>
+#include <bit>
+#include <atomic>
 
 #include <cassert>
 
-#include "BasicTCPServer.h"
-
+import BasicTCPServer;
 import UACEJsonCoder;
 import UACEPkgBlobCoder;
 import UACEDeviationLogger;
@@ -24,7 +25,7 @@ import Structures;
 
 using namespace UACE::MemManager::Literals;
 
-TEST(deviationCoder, JsonCoder)
+TEST(deviationCoder, JsonCoderMesh)
 {
 
 	constexpr char jsonString[]{ "\
@@ -32,7 +33,7 @@ TEST(deviationCoder, JsonCoder)
 		\"ObjectName\" : \"TestObj1\",\
 		\"DeviationType\" : \"Mesh\",\
 		\"DeviationId\" : 14,\
-		\"ObjectType\" : \"ObjType\"}\
+		\"ObjectType\" : \"MESH\"}\
 " };
 
 	const auto decodedVariant{ UACE::JsonCoder::decode(jsonString) };
@@ -42,7 +43,7 @@ TEST(deviationCoder, JsonCoder)
 	EXPECT_STRCASEEQ(devPkg->objectName.data(), "TestObj1");
 	EXPECT_STRCASEEQ(devPkg->deviationType.data(), "Mesh");
 	EXPECT_EQ(devPkg->deviationId, 14);
-	EXPECT_STRCASEEQ(devPkg->objectType.data(), "ObjType");
+	EXPECT_EQ(devPkg->objectType, UACE::JsonCoder::ObjectType::MESH);
 
 	{
 		const auto failedVariant{ UACE::JsonCoder::decode("{\"sometype\": 31}") };
@@ -53,6 +54,28 @@ TEST(deviationCoder, JsonCoder)
 		const auto failedVariant{ UACE::JsonCoder::decode("ABRAKADABRA") };
 		EXPECT_EQ(failedVariant.index(), static_cast<size_t>(UACE::JsonCoder::PKG_TYPE::NONE));
 	}
+
+}
+
+TEST(deviationCoder, JsonCoderCamera)
+{
+
+	constexpr char jsonString[]{ "\
+		{\"PkgType\": \"Deviation\",\
+		\"ObjectName\" : \"TestObj1\",\
+		\"DeviationType\" : \"Camera\",\
+		\"DeviationId\" : 15,\
+		\"ObjectType\" : \"CAMERA\"}\
+" };
+
+	const auto decodedVariant{ UACE::JsonCoder::decode(jsonString) };
+	EXPECT_EQ(decodedVariant.index(), static_cast<size_t>(UACE::JsonCoder::PKG_TYPE::DEVIATION));
+	const auto devPkg{ std::get_if<static_cast<size_t>(UACE::JsonCoder::PKG_TYPE::DEVIATION)>(&decodedVariant) };
+
+	EXPECT_STRCASEEQ(devPkg->objectName.data(), "TestObj1");
+	EXPECT_STRCASEEQ(devPkg->deviationType.data(), "Camera");
+	EXPECT_EQ(devPkg->deviationId, 15);
+	EXPECT_EQ(devPkg->objectType, UACE::JsonCoder::ObjectType::CAMERA);
 
 }
 
@@ -87,9 +110,9 @@ TEST(deviationCoder, DecodeTransformation)
 const auto createCameraData()
 {
 
-	std::array<char, 62> cRaw;
+	std::array<char, 49> cRaw;
 	auto point{ cRaw.data() };
-	const auto pushData = [&cRaw](auto point, auto data)
+	const auto pushData = [&cRaw](auto point, const auto data)
 	{
 		assert(point + sizeof(data) <= cRaw.data() + cRaw.size());
 		std::memcpy(point, &data, sizeof(data));
@@ -97,48 +120,39 @@ const auto createCameraData()
 		return point;
 	};
 
-	float posX{ 5.f };
-	float posY{ 6.f };
-	float posZ{ -7.f };
+	const float posX{ 5.f };
+	const float posY{ 6.f };
+	const float posZ{ -7.f };
 	point = pushData(point, posX);
 	point = pushData(point, posY);
 	point = pushData(point, posZ);
 
-	float dirX{ 1.f };
-	float dirY{ 2.f };
-	float dirZ{ 3.f };
-	point = pushData(point, dirX);
-	point = pushData(point, dirY);
-	point = pushData(point, dirZ);
+	const float rotAngle{ 1.f };
+	const float rotX{ 2.f };
+	const float rotY{ 3.f };
+	const float rotZ{ 4.f };
+	point = pushData(point, rotAngle);
+	point = pushData(point, rotX);
+	point = pushData(point, rotY);
+	point = pushData(point, rotZ);
 
-	float upX{ 10.f };
-	float upY{ 20.f };
-	float upZ{ 30.f };
-	point = pushData(point, upX);
-	point = pushData(point, upY);
-	point = pushData(point, upZ);
-
-	char type{ 1 };
+	const char type{ 1 };
 	point = pushData(point, type);
 
-	float orthographicScale{ 6.f };
+	const float orthographicScale{ 6.f };
 	point = pushData(point, orthographicScale);
 
-	float clipStart{ 0.001f };
-	float clipEnd{ 100.f };
+	const float clipStart{ 0.001f };
+	const float clipEnd{ 100.f };
 	point = pushData(point, clipStart);
 	point = pushData(point, clipEnd);
 
-	float aspectRatio{ 1.5f };
+	const float aspectRatio{ 1.5f };
 	point = pushData(point, aspectRatio);
 
-	char sensorFitType{ 2 };
-	float sensorWidth{ 13.f };
-	float sensorHeight{ 23.f };
-	point = pushData(point, sensorFitType);
-	point = pushData(point, sensorWidth);
-	point = pushData(point, sensorHeight);
-
+	const float fov{ 23.f };
+	point = pushData(point, fov);
+	
 	assert(point == cRaw.data() + cRaw.size());
 
 	return cRaw;
@@ -158,13 +172,10 @@ TEST(deviationCoder, DecodeCamera)
 	EXPECT_EQ(decodedData.posY, 6.f);
 	EXPECT_EQ(decodedData.posZ, -7.f);
 
-	EXPECT_EQ(decodedData.dirX, 1.f);
-	EXPECT_EQ(decodedData.dirY, 2.f);
-	EXPECT_EQ(decodedData.dirZ, 3.f);
-
-	EXPECT_EQ(decodedData.upX, 10.f);
-	EXPECT_EQ(decodedData.upY, 20.f);
-	EXPECT_EQ(decodedData.upZ, 30.f);
+	EXPECT_EQ(decodedData.rotAngle, 1.f);
+	EXPECT_EQ(decodedData.rotX, 2.f);
+	EXPECT_EQ(decodedData.rotY, 3.f);
+	EXPECT_EQ(decodedData.rotZ, 4.f);
 
 	EXPECT_EQ(decodedData.type, 1);
 
@@ -175,9 +186,7 @@ TEST(deviationCoder, DecodeCamera)
 
 	EXPECT_EQ(decodedData.aspectRatio, 1.5f);
 
-	EXPECT_EQ(decodedData.sensorFitType, 2);
-	EXPECT_EQ(decodedData.sensorWidth, 13.f);
-	EXPECT_EQ(decodedData.sensorHeight, 23.f);
+	EXPECT_EQ(decodedData.fov, 23.f);
 
 }
 
@@ -216,7 +225,7 @@ TEST(deviationLogger, databaseClear)
 	devLogger.clear();
 
 	const auto objectHashName{ UACE::ViewerUtils::hashString("ClearObj") };
-	const auto objId{ devLogger.logNewObject(objectHashName, 0)};
+	const auto objId{ devLogger.logNewObject(objectHashName, {}) };
 
 	const auto bExist{ devLogger.getObjectExist(objId) };
 	EXPECT_TRUE(bExist);
@@ -256,7 +265,7 @@ TEST(deviationLogger, cacheInDatabase)
 		EXPECT_FALSE(bNotFound);
 	}
 
-	const auto objId{ devLogger.logNewObject(objectHashName, 0) };
+	const auto objId{ devLogger.logNewObject(objectHashName, {}) };
 	const auto objIdByHash{ devLogger.getObjectId(objectHashName) };
 	EXPECT_EQ(objIdByHash, objId);
 
@@ -273,7 +282,7 @@ TEST(deviationLogger, cacheInDatabase)
 	}
 
 	const auto objectHashName2{ UACE::ViewerUtils::hashString("ObjectName2") };
-	const auto objId2{ devLogger.logNewObject(objectHashName2, 0) };
+	const auto objId2{ devLogger.logNewObject(objectHashName2, {}) };
 	{
 		const auto bExist{ devLogger.getObjectExist(objId2) };
 		EXPECT_TRUE(bExist);
@@ -321,7 +330,7 @@ TEST(deviationLogger, logTransform)
 	}
 
 	const auto objectHashName{ UACE::ViewerUtils::hashString("ObjectName") };
-	const auto objId{ devLogger.logNewObject(objectHashName, 0) };
+	const auto objId{ devLogger.logNewObject(objectHashName, {}) };
 
 	const auto bLoaded{ devLogger.setObjectTransform(objId, matData) };
 	EXPECT_TRUE(bLoaded);
@@ -378,7 +387,7 @@ TEST(deviationLogger, logMesh)
 	}
 
 	const auto objectHashName{ UACE::ViewerUtils::hashString("ObjectName") };
-	const auto objId{ devLogger.logNewObject(objectHashName, 0) };
+	const auto objId{ devLogger.logNewObject(objectHashName, {}) };
 
 	const auto bLoaded{ devLogger.setObjectMesh(objId, rawData) };
 	EXPECT_TRUE(bLoaded);
@@ -394,6 +403,36 @@ TEST(deviationLogger, logMesh)
 		const auto bMeshLoaded{ devLogger.getObjectMesh(objId, loadedMesh) };
 		EXPECT_TRUE(bMeshLoaded);
 		EXPECT_EQ(loadedMesh, rawData);
+	}
+
+}
+
+TEST(deviationLogger, logCameraNew)
+{
+
+	prepareDatabase();
+
+	UACE::DeviationLogger devLogger("loggerDatabase.sqlite");
+	EXPECT_TRUE(devLogger.getIsReady());
+	if (!devLogger.getIsReady())
+	{
+		return;
+	}
+
+	const auto rawData{ createCameraData() };
+	{
+		const auto bLoaded{ devLogger.setCamera(1, rawData) };
+		EXPECT_FALSE(bLoaded);
+	}
+
+	const auto objectHashName{ UACE::ViewerUtils::hashString("CameraName") };
+	const auto objId{ devLogger.logNewObject(objectHashName, rawData) };
+
+	{
+		std::array<char, sizeof(rawData)> loadedCamera{};
+		const auto bCameraLoaded{ devLogger.getCamera(objId, loadedCamera) };
+		EXPECT_TRUE(bCameraLoaded);
+		EXPECT_EQ(loadedCamera, rawData);
 	}
 
 }
@@ -417,7 +456,7 @@ TEST(deviationLogger, logCamera)
 	}
 
 	const auto objectHashName{ UACE::ViewerUtils::hashString("CameraName") };
-	const auto objId{ devLogger.logNewObject(objectHashName, 0) };
+	const auto objId{ devLogger.logNewObject(objectHashName, {}) };
 
 	const auto bLoaded{ devLogger.setCamera(objId, rawData) };
 	EXPECT_TRUE(bLoaded);
@@ -437,6 +476,25 @@ TEST(deviationLogger, logCamera)
 
 }
 
+constexpr auto genTestvertexData()
+{
+	using vert_t = float;
+	constexpr auto vertices{ std::to_array<vert_t>({1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f}) };
+	return std::bit_cast<std::array<char, vertices.size() * sizeof(vert_t)>>(vertices);
+};
+
+constexpr auto compareContainers(const auto& left, const auto& right)
+{
+	if (left.size() != right.size())
+		return false;
+	for (size_t idx{ 0 }; idx < left.size(); idx++)
+	{
+		if (left[idx] != right[idx])
+			return false;
+	}
+	return true;
+}
+
 TEST(deviationDecoder, decodeFromClient)
 {
 
@@ -446,34 +504,45 @@ TEST(deviationDecoder, decodeFromClient)
 	namespace umem = UACE::MemManager;
 	using ump = umem::Pool;
 
-	umem::Pool pool(1_kb);
-	umem::Domain* domain{ pool.createDomain(1_kb) };
+	umem::Pool pool(1_kB);
+	umem::Domain* domain{ pool.createDomain(1_kB) };
 	EXPECT_NE(domain, nullptr);
 
 	namespace upa = umem::UnifiedBlockAllocator;
-	upa::UnifiedBlockAllocator ubAlloc{ upa::createAllocator(domain, 1_kb) };
+	upa::UnifiedBlockAllocator ubAlloc{ upa::createAllocator(domain, 1_kB) };
 	EXPECT_TRUE(ubAlloc.getIsValid());
 
 	BasicTCPServer server(6000);
 
-	const auto cbOnCreation = [&](size_t objId, size_t baseObjId, bool isInstance) mutable
+	const auto cbOnCameraCreation = [](size_t, std::span<const char>)
+	{
+
+	};
+
+	const auto cbOnStaticMeshCreation = [&](size_t objId, std::span<const char> meshData) mutable
 	{
 
 //		const auto hashFromName{ UACE::ViewerUtils::hashString("ObjCreation") };
-		
 
-		if (isInstance)
-		{
-			EXPECT_EQ(2, objId);
-			EXPECT_EQ(baseObjId, 1);
-			EXPECT_TRUE(logger.getObjectExist(baseObjId));
-		}
-		else
-		{
-			EXPECT_EQ(1, objId);
-			EXPECT_EQ(baseObjId, 0);
-			EXPECT_FALSE(logger.getObjectExist(baseObjId));
-		}
+		static int expectedObjId{ 1 };
+
+		EXPECT_EQ(expectedObjId++, objId);
+
+		constexpr auto expectedMeshData{ genTestvertexData() };
+		EXPECT_TRUE(compareContainers(meshData, expectedMeshData));
+
+//		if (isInstance)
+//		{
+//			EXPECT_EQ(2, objId);
+//			EXPECT_EQ(baseObjId, 1);
+//			EXPECT_TRUE(logger.getObjectExist(baseObjId));
+//		}
+//		else
+//		{
+//			EXPECT_EQ(1, objId);
+//			EXPECT_EQ(baseObjId, 0);
+//			EXPECT_FALSE(logger.getObjectExist(baseObjId));
+//		}
 		EXPECT_TRUE(logger.getObjectExist(objId));
 
 	};
@@ -481,9 +550,9 @@ TEST(deviationDecoder, decodeFromClient)
 	const auto cbOnRename = [&](size_t objId1, size_t objId2, size_t oldName, size_t newName, bool bSwapping)
 	{
 
-		const auto hashFromName{ UACE::ViewerUtils::hashString("ObjInstance") };
+		const auto hashFromName{ UACE::ViewerUtils::hashString("Obj2") };
 		EXPECT_EQ(hashFromName, oldName);
-		const auto hashFromNewName{ UACE::ViewerUtils::hashString("ObjInstanceNewName") };
+		const auto hashFromNewName{ UACE::ViewerUtils::hashString("Obj2NewName") };
 		EXPECT_EQ(hashFromNewName, newName);
 
 		EXPECT_EQ(objId1, 2);
@@ -505,16 +574,16 @@ TEST(deviationDecoder, decodeFromClient)
 	};
 
 
-	const auto cbOnTransform = [&](size_t objId, char* transformData, size_t dataLen)
+	const auto cbOnTransform = [&](size_t objId, std::span<const char> transformData)
 	{
 
 		EXPECT_EQ(objId, 1);
 
 		Mat m;
-		EXPECT_EQ(dataLen, sizeof(m));
-		if (dataLen == sizeof(m))
+		EXPECT_EQ(transformData.size(), sizeof(m));
+		if (transformData.size() == sizeof(m))
 		{
-			std::memcpy(m.m.data(), transformData, sizeof(m));
+			std::memcpy(m.m.data(), transformData.data(), sizeof(m));
 			EXPECT_EQ(m.m[0][0], 1.f);
 			EXPECT_EQ(m.m[0][1], 2.f);
 			EXPECT_EQ(m.m[0][2], 3.f);
@@ -539,52 +608,56 @@ TEST(deviationDecoder, decodeFromClient)
 
 			const auto bLoaded{ logger.getObjectTransform(objId, aLoadedTransform) };
 			EXPECT_TRUE(bLoaded);
-			EXPECT_EQ(std::strncmp(aLoadedTransform.data(), transformData, sizeof(Mat)), 0);
+			EXPECT_EQ(std::strncmp(aLoadedTransform.data(), transformData.data(), sizeof(Mat)), 0);
 
 		}
 
 	};
 
 	bool bComplete1{ false };
-	const auto cbOnMesh = [&](size_t objId, char* meshData, size_t dataLen)
+	const auto cbOnMesh = [&](size_t objId, std::span<const char> meshData)
 	{
 
 		EXPECT_EQ(objId, 1);
 
-		constexpr auto needNumOfBytes{ 6 * sizeof(TestVec3) };
-		EXPECT_EQ(dataLen, needNumOfBytes);
-
-		const auto getVec = [&](char* data)
-		{
-			TestVec3 vec{};
-			memcpy(&vec, data, sizeof(vec));
-			return vec;
-		};
-
-		const auto v0{ getVec(meshData) };
-		EXPECT_EQ(v0, TestVec3(1.f, 2.f, 3.f));
-
-		const auto v1{ getVec(meshData + sizeof(TestVec3) * 1) };
-		EXPECT_EQ(v1, TestVec3(4.f, 5.f, 6.f));
-
-		const auto v2{ getVec(meshData + sizeof(TestVec3) * 2) };
-		EXPECT_EQ(v2, TestVec3(7.f, 8.f, 9.f));
-
-		const auto v3{ getVec(meshData + sizeof(TestVec3) * 3) };
-		EXPECT_EQ(v3, TestVec3(10.f, 11.f, 12.f));
-
-		const auto v4{ getVec(meshData + sizeof(TestVec3) * 4) };
-		EXPECT_EQ(v4, TestVec3(13.f, 14.f, 15.f));
-
-		const auto v5{ getVec(meshData + sizeof(TestVec3) * 5) };
-		EXPECT_EQ(v5, TestVec3(16.f, 17.f, 18.f));
+		constexpr auto expectedMeshData{ genTestvertexData() };
+		EXPECT_TRUE(compareContainers(meshData, expectedMeshData));
 
 
-		std::array<char, needNumOfBytes> aLoadedMesh{};
-
-		const auto bLoaded{ logger.getObjectMesh(objId, aLoadedMesh) };
-		EXPECT_TRUE(bLoaded);
-		EXPECT_EQ(std::strncmp(aLoadedMesh.data(), meshData, needNumOfBytes), 0);
+//		constexpr auto needNumOfBytes{ 6 * sizeof(TestVec3) };
+//		EXPECT_EQ(dataLen, needNumOfBytes);
+//
+//		const auto getVec = [&](char* data)
+//		{
+//			TestVec3 vec{};
+//			memcpy(&vec, data, sizeof(vec));
+//			return vec;
+//		};
+//
+//		const auto v0{ getVec(meshData) };
+//		EXPECT_EQ(v0, TestVec3(1.f, 2.f, 3.f));
+//
+//		const auto v1{ getVec(meshData + sizeof(TestVec3) * 1) };
+//		EXPECT_EQ(v1, TestVec3(4.f, 5.f, 6.f));
+//
+//		const auto v2{ getVec(meshData + sizeof(TestVec3) * 2) };
+//		EXPECT_EQ(v2, TestVec3(7.f, 8.f, 9.f));
+//
+//		const auto v3{ getVec(meshData + sizeof(TestVec3) * 3) };
+//		EXPECT_EQ(v3, TestVec3(10.f, 11.f, 12.f));
+//
+//		const auto v4{ getVec(meshData + sizeof(TestVec3) * 4) };
+//		EXPECT_EQ(v4, TestVec3(13.f, 14.f, 15.f));
+//
+//		const auto v5{ getVec(meshData + sizeof(TestVec3) * 5) };
+//		EXPECT_EQ(v5, TestVec3(16.f, 17.f, 18.f));
+//
+//
+//		std::array<char, needNumOfBytes> aLoadedMesh{};
+//
+//		const auto bLoaded{ logger.getObjectMesh(objId, aLoadedMesh) };
+//		EXPECT_TRUE(bLoaded);
+//		EXPECT_EQ(std::strncmp(aLoadedMesh.data(), meshData, needNumOfBytes), 0);
 
 		bComplete1 = true;
 
@@ -593,7 +666,14 @@ TEST(deviationDecoder, decodeFromClient)
 	const auto onCamera = [](size_t, std::span<const char>)
 	{	};
 
-	UACE::Deviation::Desc desc{ cbOnCreation, onDeletion, cbOnRename, cbOnTransform, cbOnMesh, onCamera };
+	UACE::Deviation::Desc desc{ 
+		cbOnCameraCreation,
+		cbOnStaticMeshCreation, 
+		onDeletion, 
+		cbOnRename, 
+		cbOnTransform, 
+		cbOnMesh, 
+		onCamera };
 
 	UACE::DeviationDecoder devDecoder(&ubAlloc, desc, "loggerDatabase.sqlite", "127.0.0.1", 6000);
 
@@ -605,48 +685,47 @@ TEST(deviationDecoder, decodeFromClient)
 		return sendData;
 	};
 
-	constexpr char jsonCreationBase[]{ "\
+	constexpr char jsonMeshCreation[]{ "\
 		{\"PkgType\": \"Deviation\",\
 		\"ObjectName\" : \"ObjBase\",\
 		\"DeviationType\" : \"Creation\",\
 		\"DeviationId\" : 1,\
-		\"ObjectType\" : \"Mesh\"}\
+		\"ObjectType\" : \"MESH\"}\
 " };
 
-	//Is not an instance 
-	server.sendData(std::to_array(jsonCreationBase));
-	server.sendData(createBuffer(""));
+	//Creating mesh with fake metadata 
+	server.sendData(std::to_array(jsonMeshCreation));
+	server.sendData(genTestvertexData());
 
-	constexpr char jsonCreationInst[]{ "\
+	constexpr char jsonCreation2[]{ "\
 		{\"PkgType\": \"Deviation\",\
-		\"ObjectName\" : \"ObjInstance\",\
+		\"ObjectName\" : \"Obj2\",\
 		\"DeviationType\" : \"Creation\",\
-		\"DeviationId\" : 1,\
-		\"ObjectType\" : \"Mesh\"}\
+		\"DeviationId\" : 2,\
+		\"ObjectType\" : \"MESH\"}\
 " };
 
 	//Is an instance
-	server.sendData(std::to_array(jsonCreationInst));
-	server.sendData(createBuffer("ObjBase"));
-
+	server.sendData(std::to_array(jsonCreation2));
+	server.sendData(genTestvertexData());
 
 
 	constexpr char jsonRename[]{ "\
 		{\"PkgType\": \"Deviation\",\
-		\"ObjectName\" : \"ObjInstance\",\
+		\"ObjectName\" : \"Obj2\",\
 		\"DeviationType\" : \"Rename\",\
 		\"DeviationId\" : 1,\
-		\"ObjectType\" : \"Mesh\"}\
+		\"ObjectType\" : \"MESH\"}\
 " };
 	server.sendData(std::to_array(jsonRename));
-	server.sendData(createBuffer("ObjInstanceNewName"));
+	server.sendData(createBuffer("Obj2NewName"));
 
 	constexpr char jsonDeletion[]{ "\
 		{\"PkgType\": \"Deviation\",\
-		\"ObjectName\" : \"ObjInstanceNewName\",\
+		\"ObjectName\" : \"Obj2NewName\",\
 		\"DeviationType\" : \"Deletion\",\
 		\"DeviationId\" : 1,\
-		\"ObjectType\" : \"Mesh\"}\
+		\"ObjectType\" : \"MESH\"}\
 " };
 
 	server.sendData(std::to_array(jsonDeletion));
@@ -659,7 +738,7 @@ TEST(deviationDecoder, decodeFromClient)
 		\"ObjectName\" : \"ObjBase\",\
 		\"DeviationType\" : \"Transform\",\
 		\"DeviationId\" : 1,\
-		\"ObjectType\" : \"Mesh\"}\
+		\"ObjectType\" : \"MESH\"}\
 " };
 
 	const Mat trMat({ { {1.f, 2.f, 3.f, 4.f}, {11.f, 21.f, 31.f, 41.f}, {12.f, 22.f, 32.f, 42.f}, {13.f, 23.f, 33.f, 43.f} } });
@@ -674,19 +753,55 @@ TEST(deviationDecoder, decodeFromClient)
 		\"ObjectName\" : \"ObjBase\",\
 		\"DeviationType\" : \"Mesh\",\
 		\"DeviationId\" : 1,\
-		\"ObjectType\" : \"Mesh\"}\
+		\"ObjectType\" : \"MESH\"}\
 " };
 
 	server.sendData(std::to_array(jsonMesh));
 	
-	const auto aMeshData{ std::to_array({
-		TestVec3(1.f, 2.f, 3.f), TestVec3(4.f, 5.f, 6.f), 
-		TestVec3(7.f, 8.f, 9.f), TestVec3(10.f, 11.f, 12.f),
-		TestVec3(13.f, 14.f, 15.f), TestVec3(16.f, 17.f, 18.f)}) };
+//	const auto aMeshData{ std::to_array({
+//		TestVec3(1.f, 2.f, 3.f), TestVec3(4.f, 5.f, 6.f), 
+//		TestVec3(7.f, 8.f, 9.f), TestVec3(10.f, 11.f, 12.f),
+//		TestVec3(13.f, 14.f, 15.f), TestVec3(16.f, 17.f, 18.f)}) };
 
-	server.sendData(aMeshData);
+	server.sendData(genTestvertexData());
 
 	while (!bComplete1) { devDecoder.tick(); }
+
+}
+
+void compareCamera(auto objId, auto& logger, const auto rawCameraData)
+{
+
+	const auto oCamData{ UACE::PkgBlobCoder::decodeCamera(rawCameraData) };
+	EXPECT_TRUE(oCamData.has_value());
+	const auto cData{ oCamData.value() };
+
+	EXPECT_EQ(cData.posX, 5.f);
+	EXPECT_EQ(cData.posY, 6.f);
+	EXPECT_EQ(cData.posZ, -7.f);
+
+	EXPECT_EQ(cData.rotAngle, 1.f);
+	EXPECT_EQ(cData.rotX, 2.f);
+	EXPECT_EQ(cData.rotY, 3.f);
+	EXPECT_EQ(cData.rotZ, 4.f);
+
+	EXPECT_EQ(cData.type, 1);
+
+	EXPECT_EQ(cData.orthographicScale, 6.f);
+
+	EXPECT_EQ(cData.clipStart, 0.001f);
+	EXPECT_EQ(cData.clipEnd, 100.f);
+
+	EXPECT_EQ(cData.aspectRatio, 1.5f);
+
+	EXPECT_EQ(cData.fov, 23.f);
+
+	std::array<char, 49> aLoadedCamera{};
+	EXPECT_EQ(aLoadedCamera.size(), rawCameraData.size());
+
+	const auto bLoaded{ logger.getCamera(objId, aLoadedCamera) };
+	EXPECT_TRUE(bLoaded);
+	EXPECT_EQ(std::strncmp(aLoadedCamera.data(), rawCameraData.data(), rawCameraData.size()), 0);
 
 }
 
@@ -699,17 +814,29 @@ TEST(deviationDecoder, decodeCamera)
 	namespace umem = UACE::MemManager;
 	using ump = umem::Pool;
 
-	umem::Pool pool(1_kb);
-	umem::Domain* domain{ pool.createDomain(1_kb) };
+	umem::Pool pool(1_kB);
+	umem::Domain* domain{ pool.createDomain(1_kB) };
 	EXPECT_NE(domain, nullptr);
 
 	namespace upa = umem::UnifiedBlockAllocator;
-	upa::UnifiedBlockAllocator ubAlloc{ upa::createAllocator(domain, 1_kb) };
+	upa::UnifiedBlockAllocator ubAlloc{ upa::createAllocator(domain, 1_kB) };
 	EXPECT_TRUE(ubAlloc.getIsValid());
 
 	BasicTCPServer server(6000);
+	std::atomic_flag syncPoint = ATOMIC_FLAG_INIT;
 
-	const auto cbOnCreation = [](size_t, size_t, bool)
+	const auto cbOnCameraCreation = [&syncPoint, &logger](size_t objId, std::span<const char> rawCameraData)
+	{	
+
+		EXPECT_EQ(objId, 1);
+
+		compareCamera(objId, logger, rawCameraData);
+
+		syncPoint.test_and_set();
+
+	};
+
+	const auto cbOnStaticMeshCreation = [](size_t, std::span<const char>)
 	{	};
 
 	const auto cbOnRename = [](size_t, size_t, size_t, size_t, bool)
@@ -718,59 +845,31 @@ TEST(deviationDecoder, decodeCamera)
 	const auto onDeletion = [](size_t )
 	{	};
 
-	const auto cbOnTransform = [](size_t, char*, size_t)
+	const auto cbOnTransform = [](size_t, std::span<const char>)
 	{	};
 
-	const auto cbOnMesh = [](size_t, char*, size_t)
+	const auto cbOnMesh = [](size_t, std::span<const char>)
 	{	};
 
-	bool bComplete{ false };
-	const auto onCamera = [&logger, &bComplete](size_t objId, std::span<const char> rawCameraData)
+	const auto onCamera = [&logger, &syncPoint](size_t objId, std::span<const char> rawCameraData)
 	{
 
 		EXPECT_EQ(objId, 1);
 
-		const auto oCamData{ UACE::PkgBlobCoder::decodeCamera(rawCameraData) };
-		EXPECT_TRUE(oCamData.has_value());
-		const auto cData{ oCamData.value() };
+		compareCamera(objId, logger, rawCameraData);
 
-		EXPECT_EQ(cData.posX, 5.f);
-		EXPECT_EQ(cData.posY, 6.f);
-		EXPECT_EQ(cData.posZ, -7.f);
-
-		EXPECT_EQ(cData.dirX, 1.f);
-		EXPECT_EQ(cData.dirY, 2.f);
-		EXPECT_EQ(cData.dirZ, 3.f);
-
-		EXPECT_EQ(cData.upX, 10.f);
-		EXPECT_EQ(cData.upY, 20.f);
-		EXPECT_EQ(cData.upZ, 30.f);
-
-		EXPECT_EQ(cData.type, 1);
-
-		EXPECT_EQ(cData.orthographicScale, 6.f);
-
-		EXPECT_EQ(cData.clipStart, 0.001f);
-		EXPECT_EQ(cData.clipEnd, 100.f);
-
-		EXPECT_EQ(cData.aspectRatio, 1.5f);
-
-		EXPECT_EQ(cData.sensorFitType, 2);
-		EXPECT_EQ(cData.sensorWidth, 13.f);
-		EXPECT_EQ(cData.sensorHeight, 23.f);
-
-		std::array<char, 62> aLoadedCamera{};
-		EXPECT_EQ(aLoadedCamera.size(), rawCameraData.size());
-
-		const auto bLoaded{ logger.getCamera(objId, aLoadedCamera) };
-		EXPECT_TRUE(bLoaded);
-		EXPECT_EQ(std::strncmp(aLoadedCamera.data(), rawCameraData.data(), rawCameraData.size()), 0);
-
-		bComplete = true;
+		syncPoint.test_and_set();
 
 	};
 
-	UACE::Deviation::Desc desc{ cbOnCreation, onDeletion, cbOnRename, cbOnTransform, cbOnMesh, onCamera };
+	UACE::Deviation::Desc desc{ 
+		cbOnCameraCreation,
+		cbOnStaticMeshCreation,
+		onDeletion, 
+		cbOnRename, 
+		cbOnTransform, 
+		cbOnMesh, 
+		onCamera };
 
 	UACE::DeviationDecoder devDecoder(&ubAlloc, desc, "loggerDatabase.sqlite", "127.0.0.1", 6000);
 
@@ -786,11 +885,14 @@ TEST(deviationDecoder, decodeCamera)
 		\"ObjectName\" : \"Cam1\",\
 		\"DeviationType\" : \"Creation\",\
 		\"DeviationId\" : 1,\
-		\"ObjectType\" : \"Entity\"}\
+		\"ObjectType\" : \"CAMERA\"}\
 " };
 
 	server.sendData(std::to_array(jsonCreateCamera));
-	server.sendData(createBuffer(""));
+	server.sendData(createCameraData());
+
+	while (!syncPoint.test()) { devDecoder.tick(); }
+	syncPoint.clear();
 
 	constexpr char jsonCameraData[]{ "\
 		{\"PkgType\": \"Deviation\",\
@@ -803,6 +905,8 @@ TEST(deviationDecoder, decodeCamera)
 	server.sendData(std::to_array(jsonCameraData));
 	server.sendData(createCameraData());
 
-	while (!bComplete) { devDecoder.tick(); }
+	while (!syncPoint.test()) { devDecoder.tick(); }
+
+//	syncPoint.wait(true);
 
 }

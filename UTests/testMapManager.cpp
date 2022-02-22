@@ -6,6 +6,10 @@
 #include <algorithm>
 #include "cqueue.h"
 
+#include <thread>
+#include <atomic>
+#include <barrier>
+
 import UACEDirectoryHeader;
 import UACEStaticMeshHeader;
 
@@ -14,6 +18,8 @@ import UACEUnifiedBlockAllocator;
 
 import UACEMeshDataCache;
 import UACEMapDistributor;
+
+import UACEMapStreamer;
 
 import Structures;
 
@@ -25,7 +31,7 @@ TEST(map, directoryHeader)
 	namespace umem = UACE::MemManager;
 	using ump = umem::Pool;
 
-	constexpr umem::MemSize MEM_BYTES{ 128_b };
+	constexpr umem::MemSize MEM_BYTES{ 128_B };
 	umem::Pool pool(MEM_BYTES);
 	umem::Domain* domain{ pool.createDomain(MEM_BYTES) };
 	EXPECT_NE(domain, nullptr);
@@ -97,7 +103,7 @@ TEST(map, staticMeshMetadata)
 	namespace umem = UACE::MemManager;
 	using ump = umem::Pool;
 
-	constexpr umem::MemSize MEM_BYTES{ 512_b };
+	constexpr umem::MemSize MEM_BYTES{ 512_B };
 	umem::Pool pool(MEM_BYTES);
 	umem::Domain* domain{ pool.createDomain(MEM_BYTES) };
 	EXPECT_NE(domain, nullptr);
@@ -212,7 +218,7 @@ TEST(map, tsMeshDataCache)
 	namespace umem = UACE::MemManager;
 	using ump = umem::Pool;
 
-	constexpr umem::MemSize MEM_BYTES{ 2_kb };
+	constexpr umem::MemSize MEM_BYTES{ 2_kB };
 	umem::Pool pool(MEM_BYTES);
 	umem::Domain* domain{ pool.createDomain(MEM_BYTES) };
 	EXPECT_NE(domain, nullptr);
@@ -279,68 +285,159 @@ TEST(map, tsMeshDataCache)
 
 }
 
-class TestStreamer
+constinit const Mat testStreamMat({ { {1.f, 2.f, 3.f, 4.f}, {11.f, 21.f, 31.f, 41.f}, {12.f, 22.f, 33.f, 44.f}, {13.f, 23.f, 33.f, 43.f} } });
+
+constinit const auto testStreamMesh = std::invoke([]()
 {
-public:
-	struct DataStaticObjectCreated
-	{
-		size_t objId{};
-	};
 
-	struct DataStaticObjectDeleted
+	std::array<char, 100> mesh;
+	for (char el{ 0 }; auto & m : mesh)
 	{
-		size_t objId{};
-	};
-
-	struct DataStaticSetTransform
-	{
-		Mat mat4x4{};
-		size_t objId{};
-	};
-
-	struct DataStaticSetMesh
-	{
-		size_t objId{};
-		std::span<const char> blob;
-	};
-
-	using Data_t = std::variant<
-		DataStaticObjectCreated,
-		DataStaticObjectDeleted,
-		DataStaticSetTransform,
-		DataStaticSetMesh>;
-
-public:
-	constexpr void createStaticObject(size_t objId)
-	{
-		qTriggered.push(DataStaticObjectCreated(objId));
+		m = el++;
 	}
+	return mesh;
 
-	constexpr void deleteStaticObject(size_t objId)
-	{
-		qTriggered.push(DataStaticObjectDeleted(objId));
-	}
+});
 
-	constexpr void sendTransformData(size_t objId, const Mat& mat)
-	{
-		qTriggered.push(DataStaticSetTransform(mat, objId));
-	}
-
-	constexpr void sendMeshData(size_t objId, std::span<const char> blob)
-	{
-		qTriggered.push(DataStaticSetMesh(objId, blob));
-	}
-
-public:
-
-	cexpr::queue<Data_t> qTriggered{};
-
+constinit const UACE::Structs::CameraData testStreamCamera{
+	.posX = 10.f,
+	.posY = 20.f,
+	.posZ = 30.f,
+	.rotAngle = 45.f,
+	.rotX = 2.f,
+	.rotY = 3.f,
+	.rotZ = 4.f,
+	.type = 1,
+	.orthographicScale = 5.f,
+	.fov = 32.f,
+	.aspectRatio = 1.5f,
+	.clipStart = 0.02f,
+	.clipEnd = 200.f
 };
+
+void streamerTest(UACE::Map::Streamer<UACE::MemManager::UnifiedBlockAllocator::UnifiedBlockAllocator>& streamer, 
+	auto& syncPoint)
+{
+
+	syncPoint.arrive_and_wait();
+	const auto vStreamPkgCameraCreated{ streamer.getStreamPkg() };
+	const auto pkgCameraCreated{ std::get<UACE::Map::StreamerPkg::ObjectCreated>(vStreamPkgCameraCreated) };
+	EXPECT_EQ(pkgCameraCreated.objId, 1);
+
+	syncPoint.arrive_and_wait();
+	const auto vStreamPkgCameraData{ streamer.getStreamPkg() };
+	const auto pkgCameraData{ std::get<UACE::Map::StreamerPkg::CameraData>(vStreamPkgCameraData) };
+	EXPECT_EQ(pkgCameraData.objId, 1);
+	EXPECT_EQ(pkgCameraData.camera.posX, 10.f);
+	EXPECT_EQ(pkgCameraData.camera.posY, 20.f);
+	EXPECT_EQ(pkgCameraData.camera.posZ, 30.f);
+	EXPECT_EQ(pkgCameraData.camera.rotAngle, 45.f);
+	EXPECT_EQ(pkgCameraData.camera.rotX, 2.f);
+	EXPECT_EQ(pkgCameraData.camera.rotY, 3.f);
+	EXPECT_EQ(pkgCameraData.camera.rotZ, 4.f);
+	EXPECT_EQ(pkgCameraData.camera.type, 1);
+	EXPECT_EQ(pkgCameraData.camera.orthographicScale, 5.f);
+	EXPECT_EQ(pkgCameraData.camera.fov, 32.f);
+	EXPECT_EQ(pkgCameraData.camera.aspectRatio, 1.5f);
+	EXPECT_EQ(pkgCameraData.camera.clipStart, 0.02f);
+	EXPECT_EQ(pkgCameraData.camera.clipEnd, 200.f);
+
+	syncPoint.arrive_and_wait();
+	const auto vStreamPkgTransfromData{ streamer.getStreamPkg() };
+	const auto pkgTransfromData{ std::get<UACE::Map::StreamerPkg::Transform>(vStreamPkgTransfromData) };
+
+	EXPECT_EQ(pkgTransfromData.objId, 1);
+	EXPECT_EQ(std::strncmp(pkgTransfromData.matBuffer.data(), reinterpret_cast<const char*>(testStreamMat.m.begin()->data()), sizeof(Mat)), 0);
+
+	syncPoint.arrive_and_wait();
+	const auto vStreamPkgMeshData{ streamer.getStreamPkg() };
+	const auto pkgMeshData{ std::get<UACE::Map::StreamerPkg::MeshData>(vStreamPkgMeshData) };
+	EXPECT_EQ(pkgMeshData.objId, 1);
+	EXPECT_EQ(std::strncmp(pkgMeshData.blob.data(), testStreamMesh.data(), testStreamMesh.size()), 0);
+
+	const auto vStreamPkgTransfromData2{ streamer.getStreamPkg() };
+	const auto pkgTransfromData2{ std::get<UACE::Map::StreamerPkg::Transform>(vStreamPkgTransfromData2) };
+	EXPECT_EQ(pkgTransfromData2.objId, 1);
+	EXPECT_EQ(std::strncmp(pkgTransfromData2.matBuffer.data(), reinterpret_cast<const char*>(testStreamMat.m.begin()->data()), sizeof(Mat)), 0);
+
+	syncPoint.arrive_and_wait();
+	const auto vStreamPkgDelete{ streamer.getStreamPkg() };
+	const auto pkgDelete{ std::get<UACE::Map::StreamerPkg::ObjectDeleted>(vStreamPkgDelete) };
+	EXPECT_EQ(pkgDelete.objId, 1);
+
+}
+
+TEST(Map, tsMapStreamer)
+{
+
+	namespace umem = UACE::MemManager;
+	using ump = umem::Pool;
+
+	constexpr umem::MemSize MEM_BYTES{ 2_kB };
+	umem::Pool pool(MEM_BYTES);
+	umem::Domain* domain{ pool.createDomain(MEM_BYTES) };
+	EXPECT_NE(domain, nullptr);
+
+	namespace upa = umem::UnifiedBlockAllocator;
+	upa::UnifiedBlockAllocator ubAlloc{ upa::createAllocator(domain, MEM_BYTES) };
+	EXPECT_TRUE(ubAlloc.getIsValid());
+
+	UACE::Map::Streamer streamer(&ubAlloc);
+
+	std::barrier syncPoint(2);
+
+	const auto threadBody = [&streamer, &syncPoint](/*std::stop_token stoken*/)
+	{
+
+		constexpr size_t objId{ 1 };
+		UACE::Map::StreamerPkg::ObjectCreated pkgObjCreated{ objId };
+		EXPECT_TRUE(streamer.sendCreateObject(pkgObjCreated));
+		syncPoint.arrive_and_wait();
+
+		UACE::Map::StreamerPkg::CameraData pkgCameraData{
+			.objId = 1,
+			.camera = testStreamCamera
+		};
+		EXPECT_TRUE(streamer.sendCameraData(pkgCameraData));
+		syncPoint.arrive_and_wait();
+
+		{
+			UACE::Map::StreamerPkg::Transform pkg;
+			pkg.objId = objId;
+			std::memcpy(pkg.matBuffer.data(), &testStreamMat, sizeof(testStreamMat));
+			EXPECT_TRUE(streamer.sendTransformData(pkg));
+		}
+		syncPoint.arrive_and_wait();
+
+		{
+			UACE::Map::StreamerPkg::MeshData pkg;
+			pkg.objId = objId;
+			pkg.blob = testStreamMesh;
+			EXPECT_TRUE(streamer.sendMeshData(pkg));
+		}
+		{
+			UACE::Map::StreamerPkg::Transform pkg;
+			pkg.objId = objId;
+			std::memcpy(pkg.matBuffer.data(), &testStreamMat, sizeof(testStreamMat));
+			EXPECT_TRUE(streamer.sendTransformData(pkg));
+		}
+		syncPoint.arrive_and_wait();
+
+		EXPECT_TRUE(streamer.sendDeleteObject({ objId }));
+		syncPoint.arrive_and_wait();
+
+	};
+
+	std::jthread mapManagerThread(threadBody);
+
+	streamerTest(streamer, syncPoint);
+
+}
 
 class TestProvider
 {
 	using Alloc_t = UACE::MemManager::UnifiedBlockAllocator::UnifiedBlockAllocator;
-	using Distributor_t = UACE::Map::Distributor<Alloc_t, TestStreamer>;
+	using Distributor_t = UACE::Map::Distributor<Alloc_t>;
 
 public:
 	explicit constexpr TestProvider(Distributor_t* target)
@@ -350,22 +447,27 @@ public:
 
 	constexpr void triggerCreateNewObject(size_t objId)
 	{
-		this->target->onObjectCreated(objId);
+		EXPECT_TRUE(this->target->onObjectCreated(objId));
 	}
 
 	constexpr void triggerSetTransform(size_t objId, const Mat& mat)
 	{
-		this->target->onSetObjectTransform(objId, mat);
+		EXPECT_TRUE(this->target->onSetObjectTransform(objId, mat));
 	}
 
 	constexpr void triggerSetMesh(size_t objId, std::span<const char> blob)
 	{
-		this->target->onSetMesh(objId, blob);
+		EXPECT_TRUE(this->target->onSetMesh(objId, blob));
 	}
 
 	constexpr void triggerDeleteObject(size_t objId)
 	{
-		this->target->onDeleteObject(objId);
+		EXPECT_TRUE(this->target->onDeleteObject(objId));
+	}
+
+	constexpr void triggerCameraData(size_t objId, UACE::Structs::CameraData cameraData)
+	{
+		EXPECT_TRUE(this->target->onSetCameraData(objId, cameraData));
 	}
 
 private:
@@ -373,14 +475,13 @@ private:
 
 };
 
-
 TEST(Map, tsMapDistributor)
 {
 
 	namespace umem = UACE::MemManager;
 	using ump = umem::Pool;
 
-	constexpr umem::MemSize MEM_BYTES{ 2_kb };
+	constexpr umem::MemSize MEM_BYTES{ 2_kB };
 	umem::Pool pool(MEM_BYTES);
 	umem::Domain* domain{ pool.createDomain(MEM_BYTES) };
 	EXPECT_NE(domain, nullptr);
@@ -389,54 +490,44 @@ TEST(Map, tsMapDistributor)
 	upa::UnifiedBlockAllocator ubAlloc{ upa::createAllocator(domain, MEM_BYTES) };
 	EXPECT_TRUE(ubAlloc.getIsValid());
 
-	TestStreamer streamer;
+	UACE::Map::Streamer streamer(&ubAlloc);
 
-	UACE::Map::Distributor distributor(&ubAlloc, &streamer);
-	TestProvider provider(&distributor);
+	std::barrier syncPoint(2);
 
-	size_t obj1Id{ 1 };
-	provider.triggerCreateNewObject(obj1Id);
-
-	EXPECT_EQ(streamer.qTriggered.size(), 1);
+	const auto threadBody = [&streamer, &syncPoint, &ubAlloc](/*std::stop_token stoken*/)
 	{
-		const auto varData{ streamer.qTriggered.front() };
-		streamer.qTriggered.pop();
-		const auto data{ std::get<TestStreamer::DataStaticObjectCreated>(varData) };
-		EXPECT_EQ(data.objId, obj1Id);
-	}
 
-	provider.triggerDeleteObject(obj1Id);
-	{
-		const auto varData{ streamer.qTriggered.front() };
-		streamer.qTriggered.pop();
-		const auto data{ std::get<TestStreamer::DataStaticObjectDeleted>(varData) };
-		EXPECT_EQ(data.objId, obj1Id);
-	}
+		UACE::Map::Distributor distributor(&ubAlloc, &streamer);
+		TestProvider provider(&distributor);
 
-	Mat mat1({ { {1.f, 2.f, 3.f, 4.f}, {11.f, 21.f, 31.f, 41.f}, {12.f, 22.f, 33.f, 44.f}, {13.f, 23.f, 33.f, 43.f} } });
-	provider.triggerSetTransform(obj1Id, mat1);
-	{
-		const auto varData{ streamer.qTriggered.front() };
-		streamer.qTriggered.pop();
-		const auto data{ std::get<TestStreamer::DataStaticSetTransform>(varData) };
-		EXPECT_EQ(data.objId, obj1Id);
-		EXPECT_EQ(data.mat4x4, mat1);
-	}
+		size_t objId{ 1 };
+		provider.triggerCreateNewObject(objId);
 
-	std::vector<char> vMesh1(100);
-	for (char el{ 0 }; auto & m : vMesh1)
-	{
-		m = el++;
-	}
-	provider.triggerSetMesh(obj1Id, vMesh1);
-	provider.triggerSetTransform(obj1Id, mat1);
-	{
-		const auto varData{ streamer.qTriggered.front() };
-		streamer.qTriggered.pop();
-		const auto data{ std::get<TestStreamer::DataStaticSetMesh>(varData) };
-		EXPECT_EQ(data.objId, obj1Id);
-		EXPECT_EQ(data.blob.size(), vMesh1.size());
-		EXPECT_TRUE(std::ranges::equal(data.blob, vMesh1));
-	}
+		syncPoint.arrive_and_wait();
+
+		UACE::Structs::CameraData cameraData{ testStreamCamera };
+
+		provider.triggerCameraData(objId, cameraData);
+
+		syncPoint.arrive_and_wait();
+
+		provider.triggerSetTransform(objId, testStreamMat);
+
+		syncPoint.arrive_and_wait();
+
+		provider.triggerSetMesh(objId, testStreamMesh);
+		provider.triggerSetTransform(objId, testStreamMat);
+
+		syncPoint.arrive_and_wait();
+
+		provider.triggerDeleteObject(objId);
+
+		syncPoint.arrive_and_wait();
+
+	};
+
+	std::jthread mapManagerThread(threadBody);
+
+	streamerTest(streamer, syncPoint);
 
 }

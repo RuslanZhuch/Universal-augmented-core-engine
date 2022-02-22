@@ -40,8 +40,9 @@ constexpr auto checkEqual(const arr0& a0, const arr1& a1, auto size)
 TEST(MemManager, MemManagerLiterals)
 {
 
-	EXPECT_EQ(32, 32_b);
-	EXPECT_EQ(32 * 1024, 32_kb);
+	EXPECT_EQ(32, 32_B);
+	EXPECT_EQ(32 * 1024, 32_kB);
+	EXPECT_EQ(32 * 1024 * 1024, 32_MB);
 
 }
 
@@ -50,10 +51,10 @@ TEST(MemManger, PoolAlloc)
 
 	namespace umem = UACE::MemManager;
 	using ump = umem::Pool;
-	umem::Pool pool(64_kb);
+	umem::Pool pool(64_kB);
 
 	ump::PoolSize p64kb = pool.getSize();
-	EXPECT_TRUE(p64kb == 64_kb);
+	EXPECT_TRUE(p64kb == 64_kB);
 	
 	char buff[40];
 	for (int i = 0; i < sizeof(buff); i++)
@@ -73,57 +74,57 @@ TEST(MemManager, Domain)
 
 	namespace umem = UACE::MemManager;
 	using ump = umem::Pool;
-	umem::Pool pool(64_kb);
+	umem::Pool pool(64_kB);
 
-	umem::Domain* domain{ pool.createDomain(32_kb) };
+	umem::Domain* domain{ pool.createDomain(32_kB) };
 	EXPECT_NE(domain, nullptr);
 
 	using udom = umem::Domain;
 
 	{
 		EXPECT_EQ(domain->getOffset(), 0);
-		EXPECT_EQ(domain->getSize(), 32_kb);
+		EXPECT_EQ(domain->getSize(), 32_kB);
 	}
 
-	umem::Domain* domain2{ pool.createDomain(16_kb) };
+	umem::Domain* domain2{ pool.createDomain(16_kB) };
 	EXPECT_NE(domain2, nullptr);
 	{
 
-		EXPECT_EQ(domain2->getOffset(), 32_kb);
-		EXPECT_EQ(domain2->getSize(), 16_kb);
+		EXPECT_EQ(domain2->getOffset(), 32_kB);
+		EXPECT_EQ(domain2->getSize(), 16_kB);
 
-		umem::Domain* domainOutOfMem{ pool.createDomain(32_kb) };
+		umem::Domain* domainOutOfMem{ pool.createDomain(32_kB) };
 		EXPECT_EQ(domainOutOfMem, nullptr);
 
 	}
 
-	const umem::MemSize reservedSize0{ domain->reserveMemory(64_b) };
-	EXPECT_EQ(reservedSize0, 64_b);
+	const umem::MemSize reservedSize0{ domain->reserveMemory(64_B) };
+	EXPECT_EQ(reservedSize0, 64_B);
 	{
 		EXPECT_EQ(domain->getOffset(), 0);
-		EXPECT_EQ(domain->getSize(), 32_kb);
-		EXPECT_EQ(domain->getFreeSpace(), (32_kb - 64_b));
+		EXPECT_EQ(domain->getSize(), 32_kB);
+		EXPECT_EQ(domain->getFreeSpace(), (32_kB - 64_B));
 	}
 
 	{
 
-		const umem::MemSize reservedSize1{ domain->reserveMemory(64_b) };
-		EXPECT_EQ(reservedSize1, 64_b);
+		const umem::MemSize reservedSize1{ domain->reserveMemory(64_B) };
+		EXPECT_EQ(reservedSize1, 64_B);
 
 		EXPECT_EQ(domain->getOffset(), 0);
-		EXPECT_EQ(domain->getSize(), 32_kb);
-		EXPECT_EQ(domain->getFreeSpace(), (32_kb - (64_b * 2)));
+		EXPECT_EQ(domain->getSize(), 32_kB);
+		EXPECT_EQ(domain->getFreeSpace(), (32_kB - (64_B * 2)));
 
 	}
 
 	{
 
-		const umem::MemSize reservedSize1{ domain->reserveMemory(32_kb) };
+		const umem::MemSize reservedSize1{ domain->reserveMemory(32_kB) };
 		EXPECT_EQ(reservedSize1, 0);
 
 		EXPECT_EQ(domain->getOffset(), 0);
-		EXPECT_EQ(domain->getSize(), 32_kb);
-		EXPECT_EQ(domain->getFreeSpace(), (32_kb - (64_b * 2)));
+		EXPECT_EQ(domain->getSize(), 32_kB);
+		EXPECT_EQ(domain->getFreeSpace(), (32_kB - (64_B * 2)));
 
 	}
 
@@ -136,36 +137,36 @@ TEST(MemManager, Domain)
 
 
 	{
-		umem::Domain* domain3{ pool.createDomain(16_kb) };
+		umem::Domain* domain3{ pool.createDomain(16_kB) };
 		EXPECT_NE(domain3, nullptr);
-		const umem::MemSize reservedSize3{ domain3->reserveMemory(64_b) };
-		EXPECT_EQ(reservedSize3, 64_b);
+		const umem::MemSize reservedSize3{ domain3->reserveMemory(64_B) };
+		EXPECT_EQ(reservedSize3, 64_B);
 		{
-			EXPECT_EQ(domain3->getOffset(), 48_kb);
-			EXPECT_EQ(domain3->getSize(), 16_kb);
-			EXPECT_EQ(domain3->getFreeSpace(), (16_kb - 64_b));
+			EXPECT_EQ(domain3->getOffset(), 48_kB);
+			EXPECT_EQ(domain3->getSize(), 16_kB);
+			EXPECT_EQ(domain3->getFreeSpace(), (16_kB - 64_B));
 		}
 
 		{
 			char* domainMem2{ domain3->getMemoryPointer() };
 			EXPECT_TRUE(domainMem2 != nullptr);
-			char* poolBaseMem2{ pool.getPtr() + 48_kb };
+			char* poolBaseMem2{ pool.getPtr() + 48_kB };
 			EXPECT_EQ(domainMem2, poolBaseMem2);
 		}
 
 		domain3->reset();
 		{
-			EXPECT_EQ(domain3->getOffset(), 48_kb);
-			EXPECT_EQ(domain3->getSize(), 16_kb);
-			EXPECT_EQ(domain3->getFreeSpace(), (16_kb));
+			EXPECT_EQ(domain3->getOffset(), 48_kB);
+			EXPECT_EQ(domain3->getSize(), 16_kB);
+			EXPECT_EQ(domain3->getFreeSpace(), (16_kB));
 		}
 
-		const umem::MemSize reservedSize3Res{ domain3->reserveMemory(64_b) };
-		EXPECT_EQ(reservedSize3Res, 64_b);
+		const umem::MemSize reservedSize3Res{ domain3->reserveMemory(64_B) };
+		EXPECT_EQ(reservedSize3Res, 64_B);
 		{
-			EXPECT_EQ(domain3->getOffset(), 48_kb);
-			EXPECT_EQ(domain3->getSize(), 16_kb);
-			EXPECT_EQ(domain3->getFreeSpace(), (16_kb - 64_b));
+			EXPECT_EQ(domain3->getOffset(), 48_kB);
+			EXPECT_EQ(domain3->getSize(), 16_kB);
+			EXPECT_EQ(domain3->getFreeSpace(), (16_kB - 64_B));
 		}
 		
 	}
@@ -181,73 +182,73 @@ TEST(MemManager, Domain)
 
 TEST(MemManager, UnifiedBlockLogic)
 {
-	std::array<char, 16_b> aBuffer{};
+	std::array<char, 16_B> aBuffer{};
 	char* buffer = aBuffer.data();
 
 	UACE::MemManager::UnifiedBlockAllocator::UnifiedBlockLogic ubLogic;
 
 
-	ubLogic.init(buffer, 16_b);
+	ubLogic.init(buffer, 16_B);
 	{
-		char* pLeft{ ubLogic.requestMemory(5_b) };
+		char* pLeft{ ubLogic.requestMemory(5_B) };
 		EXPECT_EQ(pLeft, buffer);
-		char* pCenter{ ubLogic.requestMemory(5_b) };
-		EXPECT_EQ(pCenter, buffer + 5_b);
-		char* pRight{ ubLogic.requestMemory(5_b) };
-		EXPECT_EQ(pRight, buffer + 10_b);
-		ubLogic.deallocMem(pRight, 5_b);
-		ubLogic.deallocMem(pCenter, 5_b);
-		ubLogic.deallocMem(pLeft, 5_b);
+		char* pCenter{ ubLogic.requestMemory(5_B) };
+		EXPECT_EQ(pCenter, buffer + 5_B);
+		char* pRight{ ubLogic.requestMemory(5_B) };
+		EXPECT_EQ(pRight, buffer + 10_B);
+		ubLogic.deallocMem(pRight, 5_B);
+		ubLogic.deallocMem(pCenter, 5_B);
+		ubLogic.deallocMem(pLeft, 5_B);
 	}
 	{
-		char* pLeft{ ubLogic.requestMemory(5_b) };
+		char* pLeft{ ubLogic.requestMemory(5_B) };
 		EXPECT_EQ(pLeft, buffer);
-		char* pCenter{ ubLogic.requestMemory(5_b) };
-		EXPECT_EQ(pCenter, buffer + 5_b);
-		char* pRight{ ubLogic.requestMemory(5_b) };
-		EXPECT_EQ(pRight, buffer + 10_b);
-		ubLogic.deallocMem(pLeft, 5_b);
-		ubLogic.deallocMem(pRight, 5_b);
-		pLeft = ubLogic.requestMemory(5_b);
+		char* pCenter{ ubLogic.requestMemory(5_B) };
+		EXPECT_EQ(pCenter, buffer + 5_B);
+		char* pRight{ ubLogic.requestMemory(5_B) };
+		EXPECT_EQ(pRight, buffer + 10_B);
+		ubLogic.deallocMem(pLeft, 5_B);
+		ubLogic.deallocMem(pRight, 5_B);
+		pLeft = ubLogic.requestMemory(5_B);
 		EXPECT_EQ(pLeft, buffer);
-		pRight = ubLogic.requestMemory(5_b);
-		EXPECT_EQ(pRight, buffer + 10_b);
-		ubLogic.deallocMem(pRight, 5_b);
-		ubLogic.deallocMem(pCenter, 5_b);
-		ubLogic.deallocMem(pLeft, 5_b);
+		pRight = ubLogic.requestMemory(5_B);
+		EXPECT_EQ(pRight, buffer + 10_B);
+		ubLogic.deallocMem(pRight, 5_B);
+		ubLogic.deallocMem(pCenter, 5_B);
+		ubLogic.deallocMem(pLeft, 5_B);
 	}
 	{
-		char* pLeft{ ubLogic.requestMemory(5_b) };
+		char* pLeft{ ubLogic.requestMemory(5_B) };
 		EXPECT_EQ(pLeft, buffer);
-		char* pCenter{ ubLogic.requestMemory(5_b) };
-		EXPECT_EQ(pCenter, buffer + 5_b);
-		char* pRight{ ubLogic.requestMemory(5_b) };
-		EXPECT_EQ(pRight, buffer + 10_b);
+		char* pCenter{ ubLogic.requestMemory(5_B) };
+		EXPECT_EQ(pCenter, buffer + 5_B);
+		char* pRight{ ubLogic.requestMemory(5_B) };
+		EXPECT_EQ(pRight, buffer + 10_B);
 
-		ubLogic.deallocMem(pLeft, 5_b);
-		ubLogic.deallocMem(pCenter, 5_b);
-		pLeft = ubLogic.requestMemory(5_b);
+		ubLogic.deallocMem(pLeft, 5_B);
+		ubLogic.deallocMem(pCenter, 5_B);
+		pLeft = ubLogic.requestMemory(5_B);
 		EXPECT_EQ(pLeft, buffer);
-		pCenter = ubLogic.requestMemory(5_b);
-		EXPECT_EQ(pCenter, buffer + 5_b);
-		ubLogic.deallocMem(pRight, 5_b);
-		ubLogic.deallocMem(pCenter, 5_b);
-		ubLogic.deallocMem(pLeft, 5_b);
+		pCenter = ubLogic.requestMemory(5_B);
+		EXPECT_EQ(pCenter, buffer + 5_B);
+		ubLogic.deallocMem(pRight, 5_B);
+		ubLogic.deallocMem(pCenter, 5_B);
+		ubLogic.deallocMem(pLeft, 5_B);
 	}
 	{
-		char* pLeft{ ubLogic.requestMemory(5_b) };
+		char* pLeft{ ubLogic.requestMemory(5_B) };
 		EXPECT_EQ(pLeft, buffer);
-		char* pCenter{ ubLogic.requestMemory(5_b) };
-		EXPECT_EQ(pCenter, buffer + 5_b);
-		char* pRight{ ubLogic.requestMemory(5_b) };
-		EXPECT_EQ(pRight, buffer + 10_b);
+		char* pCenter{ ubLogic.requestMemory(5_B) };
+		EXPECT_EQ(pCenter, buffer + 5_B);
+		char* pRight{ ubLogic.requestMemory(5_B) };
+		EXPECT_EQ(pRight, buffer + 10_B);
 
-		ubLogic.deallocMem(pCenter, 5_b);
-		pCenter = ubLogic.requestMemory(5_b);
-		EXPECT_EQ(pCenter, buffer + 5_b);
-		ubLogic.deallocMem(pRight, 5_b);
-		ubLogic.deallocMem(pCenter, 5_b);
-		ubLogic.deallocMem(pLeft, 5_b);
+		ubLogic.deallocMem(pCenter, 5_B);
+		pCenter = ubLogic.requestMemory(5_B);
+		EXPECT_EQ(pCenter, buffer + 5_B);
+		ubLogic.deallocMem(pRight, 5_B);
+		ubLogic.deallocMem(pCenter, 5_B);
+		ubLogic.deallocMem(pLeft, 5_B);
 	}
 
 }
@@ -258,21 +259,21 @@ TEST(MemManger, UnifiedBlockAlloc)
 	namespace umem = UACE::MemManager;
 	using ump = umem::Pool;
 
-	umem::Pool pool(64_kb);
+	umem::Pool pool(64_kB);
 
-	umem::Domain* domain{ pool.createDomain(64_kb) };
+	umem::Domain* domain{ pool.createDomain(64_kB) };
 	EXPECT_NE(domain, nullptr);
 
 	namespace upa = umem::UnifiedBlockAllocator;
-	upa::UnifiedBlockAllocator ubAlloc{ upa::createAllocator(domain, 32_kb) };
+	upa::UnifiedBlockAllocator ubAlloc{ upa::createAllocator(domain, 32_kB) };
 	EXPECT_TRUE(ubAlloc.getIsValid());
 
 	EXPECT_TRUE(ubAlloc.getPtr() != nullptr);
 	EXPECT_EQ(ubAlloc.getPtr(), pool.getPtr());
 
-	upa::UnifiedBlockAllocator ubAlloc2{ upa::createAllocator(domain, 30_kb) };
+	upa::UnifiedBlockAllocator ubAlloc2{ upa::createAllocator(domain, 30_kB) };
 	EXPECT_TRUE(ubAlloc2.getIsValid());
-	EXPECT_EQ(ubAlloc2.getPtr(), pool.getPtr() + 32_kb);
+	EXPECT_EQ(ubAlloc2.getPtr(), pool.getPtr() + 32_kB);
 	
 	struct Obj0
 	{
@@ -306,15 +307,15 @@ TEST(MemManger, UnifiedBlockAlloc)
 	obj1.release();
 	EXPECT_EQ(obj1.ptr, nullptr);
 
-	upa::UnifiedBlockAllocator ubAlloc3{ upa::createAllocator(domain, 15_b) };
+	upa::UnifiedBlockAllocator ubAlloc3{ upa::createAllocator(domain, 15_B) };
 	EXPECT_TRUE(ubAlloc3.getIsValid());
-	auto obj3Left{ ubAlloc3.createUnique<std::array<char, 5_b>>() };
+	auto obj3Left{ ubAlloc3.createUnique<std::array<char, 5_B>>() };
 	EXPECT_TRUE(obj3Left.ptr != nullptr);
-	auto obj3Mid{ ubAlloc3.createUnique<std::array<char, 5_b>>() };
+	auto obj3Mid{ ubAlloc3.createUnique<std::array<char, 5_B>>() };
 	EXPECT_TRUE(obj3Mid.ptr != nullptr);
-	auto obj3Right{ ubAlloc3.createUnique<std::array<char, 5_b>>() };
+	auto obj3Right{ ubAlloc3.createUnique<std::array<char, 5_B>>() };
 	EXPECT_TRUE(obj3Right.ptr != nullptr);
-	auto obj3Failed{ ubAlloc3.createUnique<std::array<char, 5_b>>() };
+	auto obj3Failed{ ubAlloc3.createUnique<std::array<char, 5_B>>() };
 	EXPECT_TRUE(obj3Failed.ptr == nullptr);
 	EXPECT_TRUE(obj3Failed.allocPtr == nullptr);
 
@@ -347,10 +348,10 @@ TEST(MemManger, UnifiedBlockAlloc)
 
 	char* rawDataPtr{ nullptr };
 	{
-		auto blobData{ ubAlloc.createRaw(64_b) };
+		auto blobData{ ubAlloc.createRaw(64_B) };
 		rawDataPtr = blobData.ptr;
 		EXPECT_NE(rawDataPtr, nullptr);
-		EXPECT_EQ(blobData.numOfElements, 64_b);
+		EXPECT_EQ(blobData.numOfElements, 64_B);
 	}
 
 	Obj1* objPtrNew3{ ubAlloc.create<Obj1>(909) };
@@ -381,51 +382,48 @@ TEST(Utils, Queue)
 	namespace umem = UACE::MemManager;
 	using ump = umem::Pool;
 
-	umem::Pool pool(1_kb);
-	umem::Domain* domain{ pool.createDomain(1_kb) };
+	umem::Pool pool(1_kB);
+	umem::Domain* domain{ pool.createDomain(1_kB) };
 	EXPECT_NE(domain, nullptr);
 
 	namespace upa = umem::UnifiedBlockAllocator;
-	upa::UnifiedBlockAllocator ubAlloc{ upa::createAllocator(domain, 1_kb) };
+	upa::UnifiedBlockAllocator ubAlloc{ upa::createAllocator(domain, 1_kB) };
 	EXPECT_TRUE(ubAlloc.getIsValid());
 
 	UACE::UTILS::Queue<int, 4, upa::UnifiedBlockAllocator> queue(&ubAlloc);
 	EXPECT_EQ(queue.getMaxEls(), 4);
 
-	std::array<char, 32_b> aOut{};
+	int aOut{};
 	int outVal{ 0 };
 
 	{
 		EXPECT_TRUE(queue.getIsEmpty());
-		EXPECT_FALSE(queue.pop(aOut));
+		EXPECT_FALSE(queue.pop(&aOut));
 	}
 
 	EXPECT_TRUE(queue.push(65));
 	EXPECT_FALSE(queue.getIsEmpty());
 	{
-		EXPECT_TRUE(queue.pop(aOut));
-		std::memcpy(&outVal, aOut.data(), sizeof(outVal));
-		EXPECT_EQ(outVal, 65);
+		EXPECT_TRUE(queue.pop(&aOut));
+		EXPECT_EQ(aOut, 65);
 	}
 	{
 		EXPECT_TRUE(queue.getIsEmpty());
-		EXPECT_FALSE(queue.pop(aOut));
+		EXPECT_FALSE(queue.pop(&aOut));
 	}
 
 	EXPECT_TRUE(queue.push(122));
 	EXPECT_TRUE(queue.push(244));
 	{
-		EXPECT_TRUE(queue.pop(aOut));
-		std::memcpy(&outVal, aOut.data(), sizeof(outVal));
-		EXPECT_EQ(outVal, 122);
+		EXPECT_TRUE(queue.pop(&aOut));
+		EXPECT_EQ(aOut, 122);
 	} 
 	{
-		EXPECT_TRUE(queue.pop(aOut));
-		std::memcpy(&outVal, aOut.data(), sizeof(outVal));
-		EXPECT_EQ(outVal, 244);
+		EXPECT_TRUE(queue.pop(&aOut));
+		EXPECT_EQ(aOut, 244);
 	}
 	{
-		EXPECT_FALSE(queue.pop(aOut));
+		EXPECT_FALSE(queue.pop(&aOut));
 	}
 	EXPECT_TRUE(queue.push(301));
 	EXPECT_TRUE(queue.push(302));
@@ -434,27 +432,23 @@ TEST(Utils, Queue)
 	EXPECT_FALSE(queue.push(305));
 	EXPECT_FALSE(queue.getIsEmpty());
 	{
-		EXPECT_TRUE(queue.pop(aOut));
-		std::memcpy(&outVal, aOut.data(), sizeof(outVal));
-		EXPECT_EQ(outVal, 301);
+		EXPECT_TRUE(queue.pop(&aOut));
+		EXPECT_EQ(aOut, 301);
 	}
 	{
-		EXPECT_TRUE(queue.pop(aOut));
-		std::memcpy(&outVal, aOut.data(), sizeof(outVal));
-		EXPECT_EQ(outVal, 302);
+		EXPECT_TRUE(queue.pop(&aOut));
+		EXPECT_EQ(aOut, 302);
 	}
 	{
-		EXPECT_TRUE(queue.pop(aOut));
-		std::memcpy(&outVal, aOut.data(), sizeof(outVal));
-		EXPECT_EQ(outVal, 303);
+		EXPECT_TRUE(queue.pop(&aOut));
+		EXPECT_EQ(aOut, 303);
 	}
 	{
-		EXPECT_TRUE(queue.pop(aOut));
-		std::memcpy(&outVal, aOut.data(), sizeof(outVal));
-		EXPECT_EQ(outVal, 304);
+		EXPECT_TRUE(queue.pop(&aOut));
+		EXPECT_EQ(aOut, 304);
 	}
 	{
-		EXPECT_FALSE(queue.pop(aOut));
+		EXPECT_FALSE(queue.pop(&aOut));
 	}
 	EXPECT_TRUE(queue.getIsEmpty());
 
@@ -469,12 +463,12 @@ TEST(Utils, QueueMultithread)
 	namespace umem = UACE::MemManager;
 	using ump = umem::Pool;
 
-	umem::Pool pool(1_kb);
-	umem::Domain* domain{ pool.createDomain(1_kb) };
+	umem::Pool pool(1_kB);
+	umem::Domain* domain{ pool.createDomain(1_kB) };
 	EXPECT_NE(domain, nullptr);
 
 	namespace upa = umem::UnifiedBlockAllocator;
-	upa::UnifiedBlockAllocator ubAlloc{ upa::createAllocator(domain, 1_kb) };
+	upa::UnifiedBlockAllocator ubAlloc{ upa::createAllocator(domain, 1_kB) };
 	EXPECT_TRUE(ubAlloc.getIsValid());
 
 	UACE::UTILS::Queue<int, 4, upa::UnifiedBlockAllocator> queue(&ubAlloc);
@@ -495,12 +489,9 @@ TEST(Utils, QueueMultithread)
 			{
 				continue;
 			}
-			std::array<char, 32_b> aOutVal{};
 
-			EXPECT_TRUE(queue.pop(aOutVal));
 			int outVal{ 0 };
-			std::memcpy(&outVal, aOutVal.data(), sizeof(outVal));
-
+			EXPECT_TRUE(queue.pop(&outVal));
 			EXPECT_EQ(outVal, currVal + 1);
 			currVal++;
 
@@ -542,12 +533,12 @@ TEST(Containers, Array)
 	namespace umem = UACE::MemManager;
 	using ump = umem::Pool;
 
-	umem::Pool pool(1_kb);
-	umem::Domain* domain{ pool.createDomain(1_kb) };
+	umem::Pool pool(1_kB);
+	umem::Domain* domain{ pool.createDomain(1_kB) };
 	EXPECT_NE(domain, nullptr);
 
 	namespace upa = umem::UnifiedBlockAllocator;
-	upa::UnifiedBlockAllocator ubAlloc{ upa::createAllocator(domain, 1_kb) };
+	upa::UnifiedBlockAllocator ubAlloc{ upa::createAllocator(domain, 1_kB) };
 	EXPECT_TRUE(ubAlloc.getIsValid());
 
 	{
@@ -637,12 +628,12 @@ TEST(Scripts, ScriptFileDecoding)
 	namespace umem = UACE::MemManager;
 	using ump = umem::Pool;
 
-	umem::Pool pool(1_kb);
-	umem::Domain* domain{ pool.createDomain(1_kb) };
+	umem::Pool pool(1_kB);
+	umem::Domain* domain{ pool.createDomain(1_kB) };
 	EXPECT_NE(domain, nullptr);
 
 	namespace upa = umem::UnifiedBlockAllocator;
-	upa::UnifiedBlockAllocator ubAlloc{ upa::createAllocator(domain, 1_kb) };
+	upa::UnifiedBlockAllocator ubAlloc{ upa::createAllocator(domain, 1_kB) };
 	EXPECT_TRUE(ubAlloc.getIsValid());
 
 	std::ifstream scrFile("testscript.lscr", std::ios::binary);
@@ -651,7 +642,7 @@ TEST(Scripts, ScriptFileDecoding)
 	const auto dataLen{ scrFile.tellg() };
 	scrFile.seekg(0, std::ios::beg);
 
-	std::array<char, 1_kb> fileData;
+	std::array<char, 1_kB> fileData;
 	EXPECT_GE(fileData.size(), dataLen);
 	scrFile.read(fileData.data(), dataLen);
 
@@ -686,12 +677,12 @@ TEST(Scripts, ScriptFileLoader)
 	namespace umem = UACE::MemManager;
 	using ump = umem::Pool;
 
-	umem::Pool pool(1_kb);
-	umem::Domain* domain{ pool.createDomain(1_kb) };
+	umem::Pool pool(1_kB);
+	umem::Domain* domain{ pool.createDomain(1_kB) };
 	EXPECT_NE(domain, nullptr);
 
 	namespace upa = umem::UnifiedBlockAllocator;
-	upa::UnifiedBlockAllocator ubAlloc{ upa::createAllocator(domain, 1_kb) };
+	upa::UnifiedBlockAllocator ubAlloc{ upa::createAllocator(domain, 1_kB) };
 	EXPECT_TRUE(ubAlloc.getIsValid());
 
 	auto [funcData, structData] {UACE::Script::loadFromFile("testscript.lscr", &ubAlloc)};
@@ -720,12 +711,12 @@ TEST(Scripts, ScriptPrototype)
 	namespace umem = UACE::MemManager;
 	using ump = umem::Pool;
 
-	umem::Pool pool(2_kb);
-	umem::Domain* domain{ pool.createDomain(2_kb) };
+	umem::Pool pool(2_kB);
+	umem::Domain* domain{ pool.createDomain(2_kB) };
 	EXPECT_NE(domain, nullptr);
 
 	namespace upa = umem::UnifiedBlockAllocator;
-	upa::UnifiedBlockAllocator ubAlloc{ upa::createAllocator(domain, 2_kb) };
+	upa::UnifiedBlockAllocator ubAlloc{ upa::createAllocator(domain, 2_kB) };
 	EXPECT_TRUE(ubAlloc.getIsValid());
 
 	UACE::Script::Prototype scrProto(&ubAlloc);

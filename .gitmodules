@@ -7,9 +7,3 @@
 [submodule "PurrViewer/imgui"]
 	path = PurrViewer/imgui
 	url = https://github.com/ocornut/imgui.git
-[submodule "UACEViewerUtils/evpp"]
-	path = UACEViewerUtils/evpp
-	url = https://github.com/Qihoo360/evpp.git
-[submodule "UACEViewerUtils/sockpp"]
-	path = UACEViewerUtils/sockpp
-	url = https://github.com/fpagliughi/sockpp.git

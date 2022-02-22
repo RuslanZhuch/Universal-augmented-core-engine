@@ -42,18 +42,22 @@
     <LibraryPath>$(SolutionDir)UACEMemManager\$(Configuration);$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <IncludePath>$(SolutionDir);$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)UACEViewerUtils\include;$(SolutionDir);$(IncludePath)</IncludePath>
     <LibraryPath>$(SolutionDir)UACEViewerUtils\libs\$(Configuration);$(SolutionDir)UACEMemManager\$(Configuration);$(LibraryPath)</LibraryPath>
     <LinkIncremental>false</LinkIncremental>
     <RunCodeAnalysis>false</RunCodeAnalysis>
     <EnableClangTidyCodeAnalysis>false</EnableClangTidyCodeAnalysis>
+    <SourcePath>$(SourcePath)</SourcePath>
   </PropertyGroup>
   <ItemGroup>
+    <ClCompile Include="testThreadUtils.cpp" />
     <ClInclude Include="cqueue.h" />
     <ClInclude Include="pch.h" />
     <ClCompile Include="Structures.ixx" />
     <ClCompile Include="testBuffers.cpp" />
-    <ClInclude Include="BasicTCPServer.h" />
+    <ClCompile Include="BasicTCPServer.ixx">
+      <FileType>CppHeader</FileType>
+    </ClCompile>
     <ClCompile Include="testDeviation.cpp" />
     <ClCompile Include="testMapManager.cpp" />
     <ClCompile Include="testTCP.cpp" />
@@ -106,7 +110,7 @@
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
-      <AdditionalDependencies>SQLiteCpp.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>SQLiteCpp.lib;ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">

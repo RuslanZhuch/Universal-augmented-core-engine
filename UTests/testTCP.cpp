@@ -6,7 +6,7 @@
 
 #include <chrono>
 
-#include "BasicTCPServer.h"
+import BasicTCPServer;
 
 import UACEClient;
 import UACEUnifiedBlockAllocator;
@@ -34,18 +34,50 @@ bool getEquals(const auto& temp, const auto& other)
 
 };
 
+
+//TEST(tcp, SocketClient)
+//{
+//
+//	BasicTCPServer server(6000);
+//
+//	WSAData wsaData;
+//	WORD DllVersion = MAKEWORD(2, 2);
+//	const auto startupErr{ WSAStartup(DllVersion, &wsaData) };
+//	EXPECT_EQ(startupErr, 0);
+//
+//
+//	std::string getInput = "";
+//	SOCKADDR_IN addr;
+//	int addrLen = sizeof(addr);
+//	IN_ADDR ipvalue;
+//	addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+//	addr.sin_port = htons(6000);
+//	addr.sin_family = AF_INET;
+//
+//	SOCKET connection = socket(AF_INET, SOCK_STREAM, NULL);
+//	const auto connectResult{ connect(connection, (SOCKADDR*)&addr, addrLen) };
+//	if (connectResult != 0)
+//	{
+//		const auto errorCode{ WSAGetLastError() };
+//		EXPECT_EQ(connectResult, 0);
+//	}
+//
+//	WSACleanup();
+//
+//}
+
 TEST(tcp, UACEConnect)
 {
 
 	namespace umem = UACE::MemManager;
 	using ump = umem::Pool;
 
-	umem::Pool pool(1_kb);
-	umem::Domain* domain{ pool.createDomain(1_kb) };
+	umem::Pool pool(1_kB);
+	umem::Domain* domain{ pool.createDomain(1_kB) };
 	EXPECT_NE(domain, nullptr);
 
 	namespace upa = umem::UnifiedBlockAllocator;
-	upa::UnifiedBlockAllocator ubAlloc{ upa::createAllocator(domain, 1_kb) };
+	upa::UnifiedBlockAllocator ubAlloc{ upa::createAllocator(domain, 1_kB) };
 	EXPECT_TRUE(ubAlloc.getIsValid());
 
 	BasicTCPServer server(6000);
@@ -71,7 +103,7 @@ TEST(tcp, UACEConnect)
 		return;
 	}
 
-	std::array<char, 1_kb> recPkg{};
+	std::array<char, 1_kB> recPkg{};
 
 	{
 		const auto recSize{ client.popPkg(recPkg.data(), recPkg.size()) };
@@ -125,5 +157,11 @@ TEST(tcp, UACEConnect)
 			EXPECT_EQ(recSizeEmpty, 0);
 		}
 	}
+
+	client.sendDeviationId(2);
+	EXPECT_TRUE(server.waitForDeviation(2));
+
+	client.sendDeviationId(3);
+	EXPECT_TRUE(server.waitForDeviation(3));
 
 }
