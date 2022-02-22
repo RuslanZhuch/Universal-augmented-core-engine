@@ -73,6 +73,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>false</LinkIncremental>
     <IncludePath>E:\Projects\DirectX\UACE\UACE\PurrViewer\imgui;$(IncludePath)</IncludePath>
+    <LibraryPath>$(SolutionDir)UACEViewerUtils\libs\$(Configuration);$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
@@ -95,7 +96,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>D3DCompiler.lib;dxguid.lib;dxgi.lib;d3d12.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>D3DCompiler.lib;dxguid.lib;dxgi.lib;d3d12.lib;ws2_32.lib;SQLiteCpp.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -181,6 +182,9 @@
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\UACEExecutor\UACEExecutor.vcxproj">
+      <Project>{fbc679e7-b292-4026-82d3-5e5b904c7081}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\UACEMemManger\UACEMemManger.vcxproj">
       <Project>{3b222276-56be-4f49-99fa-be9d6e138ff9}</Project>
     </ProjectReference>

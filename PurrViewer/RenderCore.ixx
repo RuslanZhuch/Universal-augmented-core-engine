@@ -1,11 +1,16 @@
 module;
 
+#define WIN32_LEAN_AND_MEAN
 #include "DirectX-Headers/include/directx/d3dx12.h"
 #include <d3d12.h>
 #include <dxgi.h>
 #include <DirectXColors.h>
 
 #include <array>
+#include <thread>
+#include <span>
+#include <latch>
+#include <variant>
 
 #include "imgui/imgui.h"
 
@@ -16,6 +21,19 @@ export module RenderCore;
 import D3d12Utils;
 import Camera;
 import UACEQueue;
+
+import UACEMemPool;
+import UACEUnifiedBlockAllocator;
+
+import UACEMapStreamer;
+import UACEMeshDataCache;
+import UACEDirectoryHeader;
+import UACEArray;
+
+import UACEDeviationDecoder;
+import UACEPkgBlobCoder;
+
+using namespace UACE::MemManager::Literals;
 
 export struct Vertex
 {
@@ -32,14 +50,14 @@ export struct Vertex
 
 static auto vertices{ std::to_array<Vertex>(
 {
- Vertex(DirectX::XMFLOAT3(-1.0f, -1.0f, -1.0f), DirectX::XMFLOAT4(DirectX::Colors::Black), DirectX::XMFLOAT2(0.0f, 1.0f)),
- Vertex(DirectX::XMFLOAT3(-1.0f, +1.0f, -1.0f), DirectX::XMFLOAT4(DirectX::Colors::White), DirectX::XMFLOAT2(0.0f, 0.0f)),
- Vertex(DirectX::XMFLOAT3(+1.0f, +1.0f, -1.0f), DirectX::XMFLOAT4(DirectX::Colors::White), DirectX::XMFLOAT2(1.0f, 0.0f)),
- Vertex(DirectX::XMFLOAT3(+1.0f, -1.0f, -1.0f), DirectX::XMFLOAT4(DirectX::Colors::Black), DirectX::XMFLOAT2(1.0f, 1.0f)),
- Vertex(DirectX::XMFLOAT3(-1.0f, -1.0f, +1.0f), DirectX::XMFLOAT4(DirectX::Colors::Black), DirectX::XMFLOAT2(1.0f, 1.0f)),
- Vertex(DirectX::XMFLOAT3(-1.0f, +1.0f, +1.0f), DirectX::XMFLOAT4(DirectX::Colors::White), DirectX::XMFLOAT2(0.0f, 1.0f)),
- Vertex(DirectX::XMFLOAT3(+1.0f, +1.0f, +1.0f), DirectX::XMFLOAT4(DirectX::Colors::White), DirectX::XMFLOAT2(0.0f, 0.0f)),
- Vertex(DirectX::XMFLOAT3(+1.0f, -1.0f, +1.0f), DirectX::XMFLOAT4(DirectX::Colors::Black), DirectX::XMFLOAT2(1.0f, 0.0f))
+	Vertex(DirectX::XMFLOAT3(-1.0f, -1.0f, -1.0f), DirectX::XMFLOAT4(DirectX::Colors::Black), DirectX::XMFLOAT2(0.0f, 1.0f)),
+	Vertex(DirectX::XMFLOAT3(-1.0f, +1.0f, -1.0f), DirectX::XMFLOAT4(DirectX::Colors::White), DirectX::XMFLOAT2(0.0f, 0.0f)),
+	Vertex(DirectX::XMFLOAT3(+1.0f, +1.0f, -1.0f), DirectX::XMFLOAT4(DirectX::Colors::White), DirectX::XMFLOAT2(1.0f, 0.0f)),
+	Vertex(DirectX::XMFLOAT3(+1.0f, -1.0f, -1.0f), DirectX::XMFLOAT4(DirectX::Colors::Black), DirectX::XMFLOAT2(1.0f, 1.0f)),
+	Vertex(DirectX::XMFLOAT3(-1.0f, -1.0f, +1.0f), DirectX::XMFLOAT4(DirectX::Colors::Black), DirectX::XMFLOAT2(1.0f, 1.0f)),
+	Vertex(DirectX::XMFLOAT3(-1.0f, +1.0f, +1.0f), DirectX::XMFLOAT4(DirectX::Colors::White), DirectX::XMFLOAT2(0.0f, 1.0f)),
+	Vertex(DirectX::XMFLOAT3(+1.0f, +1.0f, +1.0f), DirectX::XMFLOAT4(DirectX::Colors::White), DirectX::XMFLOAT2(0.0f, 0.0f)),
+	Vertex(DirectX::XMFLOAT3(+1.0f, -1.0f, +1.0f), DirectX::XMFLOAT4(DirectX::Colors::Black), DirectX::XMFLOAT2(1.0f, 0.0f))
 }) };
 
 using index_t = uint16_t;
@@ -82,6 +100,8 @@ export namespace Purr
 	constexpr DXGI_FORMAT RENDER_TARGET_FORMAT{ DXGI_FORMAT::DXGI_FORMAT_R8G8B8A8_UNORM };
 	constexpr UINT SWAP_CHAN_BUFFERS_COUNT{ 2 };
 
+	namespace umem = UACE::MemManager;
+
 	class Renderer
 	{
 
@@ -118,7 +138,116 @@ export namespace Purr
 
 			this->camera.setPosition({ 5.f, 5.f, 5.f, 1.f });
 
+			const auto thFuc = [this](std::stop_token stoken)
+			{
+				this->streamerThreadLogic(stoken);
+			};
+			this->thStreamer = std::jthread(thFuc);
+
 			return true;
+		}
+
+		void streamerThreadLogic(std::stop_token stoken)
+		{
+
+			using ump = umem::Pool;
+
+			umem::Pool pool(10_MB);
+			umem::Domain* domain{ pool.createDomain(10_MB) };
+
+			namespace upa = umem::UnifiedBlockAllocator;
+			upa::UnifiedBlockAllocator ubAlloc{ upa::createAllocator(domain, 9_MB) };
+
+			//const auto cmdExeResult{ system("py test_objects/server.py") };
+
+			static constexpr size_t MESH_CACHE_SIZE{ 5 };
+			UACE::Containers::Array<
+				UACE::Map::StaticMeshCache<upa::UnifiedBlockAllocator>, 
+				MESH_CACHE_SIZE,
+				upa::UnifiedBlockAllocator
+			> aMeshCache(&ubAlloc);
+
+			for (size_t id{ 0 }; id < MESH_CACHE_SIZE; ++id)
+			{
+//				aMeshCache.append()
+			}
+
+			UACE::Map::DirectoryHeader(&ubAlloc);
+
+			std::latch sync(2);
+
+			//const auto console{ std::jthread([&sync]()
+			//	{
+			//		AllocConsole();
+			//		sync.arrive_and_wait();
+			//		const auto cmdExeResult{ system("script.bat") };
+			//		if (cmdExeResult != 0)
+			//		{
+			//			MessageBox(nullptr, "Failed to run cmd command", "Error", MB_OK | MB_ICONERROR);
+			//			return;
+			//		}
+			//	}) };
+			//sync.arrive_and_wait();
+
+			UACE::Map::Streamer<upa::UnifiedBlockAllocator> streamer(&ubAlloc);
+			this->pStreamer = &streamer;
+
+			const auto cbOnCameraCreation = [](size_t objId, std::span<const char> metadata)
+			{
+				objId = objId;
+			};
+
+			const auto cbOnStaticMeshCreation = [](size_t objId, std::span<const char> metadata)
+			{
+				objId = objId;
+			};
+
+			const auto cbOnRename = [](size_t objId, size_t, size_t, size_t, bool)
+			{
+				objId = 0;
+			};
+
+			const auto onDeletion = [](size_t objId)
+			{
+				objId = 0;
+			};
+
+			const auto cbOnTransform = [](size_t objId, std::span<const char>)
+			{
+				objId = 0;
+			};
+
+			const auto cbOnMesh = [](size_t objId, std::span<const char>)
+			{
+				objId = 0; 
+			};
+
+			const auto onCamera = [this](size_t objId, std::span<const char> rawCameraData)
+			{
+				const auto oCamData{ UACE::PkgBlobCoder::decodeCamera(rawCameraData) };
+				assert(oCamData.has_value());
+				UACE::Map::StreamerPkg::CameraData camData;
+				camData.objId = objId;
+				camData.camera = oCamData.value();
+				const auto bSended{ this->pStreamer->sendCameraData(camData) };
+				assert(bSended);
+			};
+
+			UACE::Deviation::Desc desc{ 
+				cbOnCameraCreation, 
+				cbOnStaticMeshCreation, 
+				onDeletion, 
+				cbOnRename, 
+				cbOnTransform, 
+				cbOnMesh, 
+				onCamera };
+			UACE::DeviationDecoder devDecoder(&ubAlloc, desc, "loggerDatabase.sqlite", "127.0.0.1", 50007, 5_MB);
+			
+			while (!stoken.stop_requested())
+			{
+				devDecoder.tick();
+			}
+
 		}
 
 		void update()
@@ -141,17 +270,17 @@ export namespace Purr
 			static float f = 0.0f;
 			static int counter = 0;
 
-			static bool bShowCamControls{ true };
+			static bool bShowCamControls{ false };
 
-			//if (ImGui::BeginMainMenuBar())
-			//{
-			//	if (ImGui::BeginMenu("Tools"))
-			//	{
-			//		ImGui::MenuItem("Show camera controls", NULL, &bShowCamControls);
-			//		ImGui::EndMenu();
-			//	}
-			//	ImGui::EndMainMenuBar();
-			//}
+			if (ImGui::BeginMainMenuBar())
+			{
+				if (ImGui::BeginMenu("Tools"))
+				{
+					ImGui::MenuItem("Show camera controls", NULL, &bShowCamControls);
+					ImGui::EndMenu();
+				}
+				ImGui::EndMainMenuBar();
+			}
 
 			static float camPos[]{5.f, -4.61f, 1.92f};
 			static float camRot[]{ 75.3f, 0.575f, 0.706f, 0.412f };
@@ -218,6 +347,22 @@ export namespace Purr
 
 				ImGui::End();
 
+			}
+			else
+			{
+				const auto vPkg{ this->pStreamer->getStreamPkg() };
+				if (std::holds_alternative<UACE::Map::StreamerPkg::CameraData>(vPkg))
+				{
+					const auto camData{ std::get<UACE::Map::StreamerPkg::CameraData>(vPkg).camera };
+					this->camera.setPosition(DirectX::XMFLOAT4(-camData.posX, camData.posZ, -camData.posY, 1.f));
+					this->camera.setRotation(camData.rotAngle, camData.rotX, -camData.rotZ, camData.rotY);
+					this->camera.setAspectRatio(camData.aspectRatio);
+					this->camera.setFov(camData.fov);
+					this->camera.setType(static_cast<Purr::Camera::Type>(camData.type));
+					this->camera.setClipStart(camData.clipStart);
+					this->camera.setClipEnd(camData.clipEnd);
+					this->camera.setOrthographicScale(camData.orthographicScale);
+				}
 			}
 
 			ImGui::Render();
@@ -886,6 +1031,9 @@ export namespace Purr
 		UINT64 currFenceId{ 0 };
 
 		Purr::Camera camera{};
+		std::jthread thStreamer;
+
+		UACE::Map::Streamer<umem::UnifiedBlockAllocator::UnifiedBlockAllocator>* pStreamer;
 
 	};
 

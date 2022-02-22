@@ -5,9 +5,8 @@
 //#pragma warning(disable : 4365)
 //#pragma warning(disable : 4512)
 
-#include <Windows.h>
+#define WIN32_LEAN_AND_MEAN
 
-#include <windows.h>
 #include <stdlib.h>
 #include <string.h>
 #include <tchar.h>
