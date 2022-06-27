@@ -9,12 +9,12 @@
 import BasicTCPServer;
 
 import UACEClient;
-import UACEUnifiedBlockAllocator;
 import UACEMemPool;
 
+import hfog.Core;
+import hfog.Alloc;
 
-using namespace UACE::MemManager::Literals;
-
+using namespace hfog::MemoryUtils::Literals;
 
 bool getEquals(const auto& temp, const auto& other)
 {
@@ -69,16 +69,8 @@ bool getEquals(const auto& temp, const auto& other)
 TEST(tcp, UACEConnect)
 {
 
-	namespace umem = UACE::MemManager;
-	using ump = umem::Pool;
-
-	umem::Pool pool(1_kB);
-	umem::Domain* domain{ pool.createDomain(1_kB) };
-	EXPECT_NE(domain, nullptr);
-
-	namespace upa = umem::UnifiedBlockAllocator;
-	upa::UnifiedBlockAllocator ubAlloc{ upa::createAllocator(domain, 1_kB) };
-	EXPECT_TRUE(ubAlloc.getIsValid());
+	using Alloc = hfog::Alloc::Unified<256_B, 1_kB>;
+	Alloc ubAlloc;
 
 	BasicTCPServer server(6000);
 
@@ -94,7 +86,7 @@ TEST(tcp, UACEConnect)
 		});
 	server.sendData(pkg0);
 
-	UACE::Client<umem::UnifiedBlockAllocator::UnifiedBlockAllocator> client(&ubAlloc, "127.0.0.1", 6000);
+	UACE::Client<Alloc> client(&ubAlloc, "127.0.0.1", 6000);
 	wait(client);
 
 	EXPECT_GT(client.getNumOfPkgs(), 0);

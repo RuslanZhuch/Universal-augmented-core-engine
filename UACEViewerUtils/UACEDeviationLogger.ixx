@@ -1,7 +1,7 @@
 module;
 
 #include <string_view>
-#include <format>
+#include "../Utils/fmt/include/fmt/format.h"
 #include <span>
 
 #include "include/SQLiteCpp/SQLiteCpp.h"
@@ -111,7 +111,7 @@ export namespace UACE
 
 		}
 
-		[[nodiscard]] bool setObjectTransform(size_t objId, std::span<char> data)
+		[[nodiscard]] bool setObjectTransform(int objId, std::span<char> data)
 		{
 
 			const auto bExist{ this->getObjectExist(objId) };
@@ -157,7 +157,7 @@ export namespace UACE
 
 		}
 
-		[[nodiscard]] bool setObjectMesh(size_t objId, std::span<char> data)
+		[[nodiscard]] bool setObjectMesh(int objId, std::span<char> data)
 		{
 
 			const auto bExist{ this->getObjectExist(objId) };
@@ -203,7 +203,7 @@ export namespace UACE
 
 		}
 
-		[[nodiscard]] bool setCamera(size_t objId, std::span<const char> data)
+		[[nodiscard]] bool setCamera(int objId, std::span<const char> data)
 		{
 
 			const auto bExist{ this->getObjectExist(objId) };
@@ -294,9 +294,9 @@ export namespace UACE
 
 	private:
 		template <typename ... _Type>
-		[[nodiscard]] constexpr std::string_view createStatement(const std::string_view text, const _Type& ... args) const
+		[[nodiscard]] std::string_view createStatement(const std::string_view text, const _Type& ... args) const
 		{
-			const auto q = std::format_to_n(this->buffer, sizeof(this->buffer), text, args...);
+			const auto q = fmt::format_to_n(this->buffer, sizeof(this->buffer), fmt::runtime(text), args...);
 			if (q.size > sizeof(buffer))
 				return {};
 			*q.out = '\0';

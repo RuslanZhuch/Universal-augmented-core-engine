@@ -23,14 +23,14 @@ export namespace D3D12Utils
 			(*uploaderResource) = nullptr;
 		}
 
-		ID3D12Resource* defailtBuffer{ nullptr };
+		ID3D12Resource* defaultBuffer{ nullptr };
 
 		D3D12_RESOURCE_DESC resourceDesc{ CD3DX12_RESOURCE_DESC::Buffer(byteSize) };
 
 		D3D12_HEAP_PROPERTIES defaultHeapProperties{ CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE::D3D12_HEAP_TYPE_DEFAULT) };
 		const auto hDefBuffer{ device->CreateCommittedResource(&defaultHeapProperties, D3D12_HEAP_FLAGS::D3D12_HEAP_FLAG_NONE,
 			&resourceDesc, D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COMMON, nullptr,
-			IID_PPV_ARGS(&defailtBuffer)) };
+			IID_PPV_ARGS(&defaultBuffer)) };
 		if (FAILED(hDefBuffer))
 		{
 			return nullptr;
@@ -50,17 +50,17 @@ export namespace D3D12Utils
 		subData.RowPitch = byteSize;
 		subData.SlicePitch = subData.RowPitch;
 
-		D3D12_RESOURCE_BARRIER copyDestBarrier{ CD3DX12_RESOURCE_BARRIER::Transition(defailtBuffer, D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COMMON,
+		D3D12_RESOURCE_BARRIER copyDestBarrier{ CD3DX12_RESOURCE_BARRIER::Transition(defaultBuffer, D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COMMON,
 			D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COPY_DEST) };
 		cmdList->ResourceBarrier(1, &copyDestBarrier);
 
-		UpdateSubresources<1>(cmdList, defailtBuffer, *uploaderResource, 0, 0, 1, &subData);
+		UpdateSubresources<1>(cmdList, defaultBuffer, *uploaderResource, 0, 0, 1, &subData);
 
-		D3D12_RESOURCE_BARRIER commonBarrier{ CD3DX12_RESOURCE_BARRIER::Transition(defailtBuffer, D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COPY_DEST,
+		D3D12_RESOURCE_BARRIER commonBarrier{ CD3DX12_RESOURCE_BARRIER::Transition(defaultBuffer, D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COPY_DEST,
 			D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COMMON) };
 		cmdList->ResourceBarrier(1, &commonBarrier);
 
-		return defailtBuffer;
+		return defaultBuffer;
 	}
 
 	ID3DBlob* loadShader(std::string_view filename)

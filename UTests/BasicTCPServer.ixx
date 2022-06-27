@@ -93,12 +93,12 @@ public:
 	std::string recvStartPkg()
 	{
 
-		int recvHeader{ 0 };
+		uint32_t recvHeader{ 0 };
 		const auto headerLen{ recv(this->sock, reinterpret_cast<char*>(&recvHeader), sizeof(recvHeader), MSG_WAITALL) };
 		if (recvHeader != 0xFA'FB'FC'FD)
 			return "";
 
-		int recvPkgLen{ 0 };
+		uint32_t recvPkgLen{ 0 };
 		const auto pkgLenBytes{ recv(this->sock, reinterpret_cast<char*>(&recvPkgLen), sizeof(recvPkgLen), MSG_WAITALL) };
 		if (recvPkgLen == 0)
 			return "";
@@ -150,7 +150,7 @@ public:
 				const unsigned int headerData{ 0xFA'FB'FC'FD };
 				
 
-				const auto pkgLen{ container.size() * sizeof(std::decay_t<decltype(container)>::value_type) };
+				const auto pkgLen{ static_cast<uint32_t>(container.size() * sizeof(std::decay_t<decltype(container)>::value_type)) };
 				send(this->sock, reinterpret_cast<const char*>(&headerData), sizeof(headerData), 0);
 				send(this->sock, reinterpret_cast<const char*>(&pkgLen), sizeof(pkgLen), 0);
 				if (pkgLen != 0)

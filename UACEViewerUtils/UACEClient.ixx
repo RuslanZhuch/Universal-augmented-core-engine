@@ -18,14 +18,18 @@ export module UACEClient;
 import UACEJsonCoder;
 
 //For Ptr
-import UACEAllocator;
-import UACERingBuffer;
+//import UACEAllocator;
+//import UACERingBuffer;
+import fovere.RingBuffer;
+import hfog.Core;
 
-using namespace UACE::MemManager::Literals;
+static constexpr size_t MAX_PACKAGES{ 16 };
+
+using namespace hfog::MemoryUtils::Literals;
 export namespace UACE
 {
 
-	template<UACE::MemManager::Allocator Alloc>
+	template<hfog::CtAllocator Alloc>
 	class Client
 	{
 
@@ -65,14 +69,14 @@ export namespace UACE
 				assert(false);
 			}
 
-			const unsigned int headerData{ 0xFA'FB'FC'FD };
+			const uint32_t headerData{ 0xFA'FB'FC'FD };
 			send(this->sock, reinterpret_cast<const char*>(&headerData), sizeof(headerData), 0);
 			constexpr char awaitString[]{ "\
 					{\"ClientType\": \"CEngine\",\
 					\"ClientName\" : \"NameEngine0\",\
 					\"LastDeviationId\" : -1}\
 				" };
-			const auto pkgLen{ sizeof(awaitString) };
+			const uint32_t pkgLen{ sizeof(awaitString) };
 			send(this->sock, reinterpret_cast<const char*>(&pkgLen), sizeof(pkgLen), 0);
 			send(this->sock, awaitString, pkgLen, 0);
 
@@ -115,7 +119,7 @@ export namespace UACE
 			send(this->sock, reinterpret_cast<const char*>(&headerData), sizeof(headerData), 0);
 
 			const auto pkg{ UACE::JsonCoder::encodeLastDeviationId(devId) };
-			const auto pkgLen{ pkg.size() };
+			const auto pkgLen{ static_cast<uint32_t>(pkg.size()) };
 			send(this->sock, reinterpret_cast<const char*>(&pkgLen), sizeof(pkgLen), 0);
 
 			send(this->sock, reinterpret_cast<const char*>(pkg.data()), pkgLen, 0);
@@ -192,7 +196,9 @@ export namespace UACE
 
 	private:
 
-		UACE::RingBuffer<Alloc> buffer;
+
+		fovere::Buffer::Ring<char, MAX_PACKAGES, Alloc> buffer;
+//		UACE::RingBuffer<Alloc> buffer;
 
 		SOCKET sock;
 		WSAOVERLAPPED recvOverlapped;

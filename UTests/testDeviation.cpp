@@ -15,15 +15,18 @@ import UACEPkgBlobCoder;
 import UACEDeviationLogger;
 import UACEViewerUtils;
 
-import UACEUnifiedBlockAllocator;
+//import UACEUnifiedBlockAllocator;
 import UACEMemPool;
 
 import UACEClient;
 import UACEDeviationDecoder;
 
+import hfog.Core;
+import hfog.Alloc;
+
 import Structures;
 
-using namespace UACE::MemManager::Literals;
+using namespace hfog::MemoryUtils::Literals;
 
 TEST(deviationCoder, JsonCoderMesh)
 {
@@ -501,16 +504,7 @@ TEST(deviationDecoder, decodeFromClient)
 	prepareDatabase();
 	UACE::DeviationLogger logger("loggerDatabase.sqlite");
 
-	namespace umem = UACE::MemManager;
-	using ump = umem::Pool;
-
-	umem::Pool pool(1_kB);
-	umem::Domain* domain{ pool.createDomain(1_kB) };
-	EXPECT_NE(domain, nullptr);
-
-	namespace upa = umem::UnifiedBlockAllocator;
-	upa::UnifiedBlockAllocator ubAlloc{ upa::createAllocator(domain, 1_kB) };
-	EXPECT_TRUE(ubAlloc.getIsValid());
+	hfog::Alloc::Unified<256_B, 10_kB> ubAlloc;
 
 	BasicTCPServer server(6000);
 
@@ -811,16 +805,7 @@ TEST(deviationDecoder, decodeCamera)
 	prepareDatabase();
 	UACE::DeviationLogger logger("loggerDatabase.sqlite");
 
-	namespace umem = UACE::MemManager;
-	using ump = umem::Pool;
-
-	umem::Pool pool(1_kB);
-	umem::Domain* domain{ pool.createDomain(1_kB) };
-	EXPECT_NE(domain, nullptr);
-
-	namespace upa = umem::UnifiedBlockAllocator;
-	upa::UnifiedBlockAllocator ubAlloc{ upa::createAllocator(domain, 1_kB) };
-	EXPECT_TRUE(ubAlloc.getIsValid());
+	hfog::Alloc::Unified<128_B, 1_kB> ubAlloc;
 
 	BasicTCPServer server(6000);
 	std::atomic_flag syncPoint = ATOMIC_FLAG_INIT;

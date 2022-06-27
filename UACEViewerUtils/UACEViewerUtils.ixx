@@ -98,7 +98,7 @@ export namespace UACE::ViewerUtils
 			return 0;
 
         std::size_t h1 = std::hash<std::string_view>{}(str);
-		return h1;
+		return h1 & 0x0000'0000'FFFF'FFFF;
 
 	}
 

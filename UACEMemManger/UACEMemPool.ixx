@@ -3,7 +3,7 @@ module;
 #include <array>
 export module UACEMemPool;
 
-export import MemoryManagerCommon;
+export import hfog.Alloc;
 export import UACEDomain;
 
 export namespace UACE::MemManager
@@ -14,7 +14,7 @@ export namespace UACE::MemManager
 
 	public:
 
-		using PoolSize = MemSize;
+		using PoolSize = mem_t;
 
 		Pool() = delete;
 		Pool(const Pool&) = delete;
@@ -35,7 +35,7 @@ export namespace UACE::MemManager
 
 		[[nodiscard]] constexpr char* getPtr() noexcept { return this->ptr; }
 
-		[[nodiscard]] constexpr MemManager::Domain* createDomain(MemSize size)
+		[[nodiscard]] constexpr MemManager::Domain* createDomain(mem_t size)
 		{
 
 			const auto newDomainOffset{ this->totalDomainSize };
@@ -75,7 +75,7 @@ export namespace UACE::MemManager
 
 		std::array<MemManager::Domain, 32> aDomains;
 		size_t numOfDomains{ 0 };
-		MemSize totalDomainSize{ 0 };
+		mem_t totalDomainSize{ 0 };
 
 	};
 

@@ -10,28 +10,33 @@
 #include <atomic>
 #include <barrier>
 
-import UACEDirectoryHeader;
-import UACEStaticMeshHeader;
+//import UACEDirectoryHeader;
+//import UACEStaticMeshHeader;
 
 import UACEMemPool;
-import UACEUnifiedBlockAllocator;
+//import UACEUnifiedBlockAllocator;
 
-import UACEMeshDataCache;
+//import UACEMeshDataCache;
 import UACEMapDistributor;
 
 import UACEMapStreamer;
 
 import Structures;
 
-using namespace UACE::MemManager::Literals;
+import hfog.Core;
+import hfog.Alloc;
 
-TEST(map, directoryHeader)
+using namespace hfog::MemoryUtils::Literals;
+
+//using namespace UACE::MemManager::Literals;
+
+/*TEST(map, directoryHeader)
 {
 
 	namespace umem = UACE::MemManager;
 	using ump = umem::Pool;
 
-	constexpr umem::MemSize MEM_BYTES{ 128_B };
+	constexpr mem_t MEM_BYTES{ 128_B };
 	umem::Pool pool(MEM_BYTES);
 	umem::Domain* domain{ pool.createDomain(MEM_BYTES) };
 	EXPECT_NE(domain, nullptr);
@@ -100,13 +105,9 @@ TEST(map, directoryHeader)
 TEST(map, staticMeshMetadata)
 {
 
-	namespace umem = UACE::MemManager;
-	using ump = umem::Pool;
+	constexpr mem_t MEM_BYTES{ 1_kB };
 
-	constexpr umem::MemSize MEM_BYTES{ 512_B };
-	umem::Pool pool(MEM_BYTES);
-	umem::Domain* domain{ pool.createDomain(MEM_BYTES) };
-	EXPECT_NE(domain, nullptr);
+	hfog::Alloc::Unified<256_B, MEM_BYTES> ubAlloc;
 
 	namespace upa = umem::UnifiedBlockAllocator;
 	upa::UnifiedBlockAllocator ubAlloc{ upa::createAllocator(domain, MEM_BYTES) };
@@ -215,17 +216,9 @@ TEST(map, staticMeshMetadata)
 TEST(map, tsMeshDataCache)
 {
 
-	namespace umem = UACE::MemManager;
-	using ump = umem::Pool;
+	constexpr mem_t MEM_BYTES{ 1_kB };
 
-	constexpr umem::MemSize MEM_BYTES{ 2_kB };
-	umem::Pool pool(MEM_BYTES);
-	umem::Domain* domain{ pool.createDomain(MEM_BYTES) };
-	EXPECT_NE(domain, nullptr);
-
-	namespace upa = umem::UnifiedBlockAllocator;
-	upa::UnifiedBlockAllocator ubAlloc{ upa::createAllocator(domain, MEM_BYTES) };
-	EXPECT_TRUE(ubAlloc.getIsValid());
+	hfog::Alloc::Unified<256_B, MEM_BYTES> ubAlloc;
 
 	UACE::Map::StaticMeshCache mcache(&ubAlloc);
 
@@ -283,7 +276,7 @@ TEST(map, tsMeshDataCache)
 		EXPECT_EQ(meshData.data(), nullptr);
 	}
 
-}
+}*/
 
 constinit const Mat testStreamMat({ { {1.f, 2.f, 3.f, 4.f}, {11.f, 21.f, 31.f, 41.f}, {12.f, 22.f, 33.f, 44.f}, {13.f, 23.f, 33.f, 43.f} } });
 
@@ -315,7 +308,7 @@ constinit const UACE::Structs::CameraData testStreamCamera{
 	.clipEnd = 200.f
 };
 
-void streamerTest(UACE::Map::Streamer<UACE::MemManager::UnifiedBlockAllocator::UnifiedBlockAllocator>& streamer, 
+void streamerTest(auto& streamer, 
 	auto& syncPoint)
 {
 
@@ -370,19 +363,11 @@ void streamerTest(UACE::Map::Streamer<UACE::MemManager::UnifiedBlockAllocator::U
 TEST(Map, tsMapStreamer)
 {
 
-	namespace umem = UACE::MemManager;
-	using ump = umem::Pool;
+	constexpr mem_t MEM_BYTES{ 2_kB };
 
-	constexpr umem::MemSize MEM_BYTES{ 2_kB };
-	umem::Pool pool(MEM_BYTES);
-	umem::Domain* domain{ pool.createDomain(MEM_BYTES) };
-	EXPECT_NE(domain, nullptr);
+	hfog::Alloc::Unified<256_B, MEM_BYTES> ubAlloc;
 
-	namespace upa = umem::UnifiedBlockAllocator;
-	upa::UnifiedBlockAllocator ubAlloc{ upa::createAllocator(domain, MEM_BYTES) };
-	EXPECT_TRUE(ubAlloc.getIsValid());
-
-	UACE::Map::Streamer streamer(&ubAlloc);
+	UACE::Map::Streamer streamer(&ubAlloc, 4);
 
 	std::barrier syncPoint(2);
 
@@ -434,10 +419,11 @@ TEST(Map, tsMapStreamer)
 
 }
 
+template<typename TDist>
 class TestProvider
 {
-	using Alloc_t = UACE::MemManager::UnifiedBlockAllocator::UnifiedBlockAllocator;
-	using Distributor_t = UACE::Map::Distributor<Alloc_t>;
+//	using Alloc_t = UACE::MemManager::UnifiedBlockAllocator::UnifiedBlockAllocator;
+	using Distributor_t = TDist;
 
 public:
 	explicit constexpr TestProvider(Distributor_t* target)
@@ -478,27 +464,20 @@ private:
 TEST(Map, tsMapDistributor)
 {
 
-	namespace umem = UACE::MemManager;
-	using ump = umem::Pool;
+	constexpr mem_t MEM_BYTES{ 2_kB };
+	using alloc_t = hfog::Alloc::Unified<128_B, MEM_BYTES>;
 
-	constexpr umem::MemSize MEM_BYTES{ 2_kB };
-	umem::Pool pool(MEM_BYTES);
-	umem::Domain* domain{ pool.createDomain(MEM_BYTES) };
-	EXPECT_NE(domain, nullptr);
+	alloc_t ubAlloc;
 
-	namespace upa = umem::UnifiedBlockAllocator;
-	upa::UnifiedBlockAllocator ubAlloc{ upa::createAllocator(domain, MEM_BYTES) };
-	EXPECT_TRUE(ubAlloc.getIsValid());
-
-	UACE::Map::Streamer streamer(&ubAlloc);
+	UACE::Map::Streamer streamer(&ubAlloc, 4);
 
 	std::barrier syncPoint(2);
 
 	const auto threadBody = [&streamer, &syncPoint, &ubAlloc](/*std::stop_token stoken*/)
 	{
 
-		UACE::Map::Distributor distributor(&ubAlloc, &streamer);
-		TestProvider provider(&distributor);
+		UACE::Map::Distributor<alloc_t> distributor(&ubAlloc, &streamer);
+		TestProvider<UACE::Map::Distributor<alloc_t>> provider(&distributor);
 
 		size_t objId{ 1 };
 		provider.triggerCreateNewObject(objId);

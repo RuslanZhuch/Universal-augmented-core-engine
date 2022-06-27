@@ -25,16 +25,7 @@
     <ClCompile Include="UACEBasicScriptFuncs.ixx">
       <Filter>Lib</Filter>
     </ClCompile>
-    <ClCompile Include="UACEScript.ixx">
-      <Filter>Lib</Filter>
-    </ClCompile>
     <ClCompile Include="UACEArray.ixx">
-      <Filter>Lib</Filter>
-    </ClCompile>
-    <ClCompile Include="UACEScriptDecoder.ixx">
-      <Filter>Lib</Filter>
-    </ClCompile>
-    <ClCompile Include="UACEScriptLoader.ixx">
       <Filter>Lib</Filter>
     </ClCompile>
     <ClCompile Include="UACEUnifiedBlockAllocator.ixx">
@@ -44,9 +35,6 @@
       <Filter>Lib</Filter>
     </ClCompile>
     <ClCompile Include="UACEAllocator.ixx">
-      <Filter>Lib</Filter>
-    </ClCompile>
-    <ClCompile Include="UACEScriptBasic.ixx">
       <Filter>Lib</Filter>
     </ClCompile>
   </ItemGroup>

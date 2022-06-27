@@ -7,3 +7,6 @@
 [submodule "PurrViewer/imgui"]
 	path = PurrViewer/imgui
 	url = https://github.com/ocornut/imgui.git
+[submodule "Utils/fovere-containers"]
+	path = Utils/fovere-containers
+	url = git@github.com:RuslanZhuch/fovere-containers.git

@@ -3,14 +3,14 @@ module;
 #include <span>
 
 export module UACEMapDistributor;
-import UACEAllocator;
+import hfog.Core;
 import UACECoreDataStructs;
 import UACEMapStreamer;
 
 export namespace UACE::Map
 {
 
-	template <UACE::MemManager::Allocator Alloc>
+	template <hfog::CtAllocator Alloc>
 	class Distributor
 	{
 		using Streamer = UACE::Map::Streamer<Alloc>;

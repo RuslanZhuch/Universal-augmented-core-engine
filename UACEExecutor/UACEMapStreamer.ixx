@@ -7,8 +7,8 @@ export module UACEMapStreamer;
 
 export import UACECoreDataStructs;
 
-import UACEAllocator;
-import UACEQueue;
+import hfog.Core;
+import fovere.Transport.Queue;
 
 export namespace UACE::Map
 {
@@ -55,16 +55,16 @@ export namespace UACE::Map
 		StreamerPkg::CameraData
 	>;
 
-	template <UACE::MemManager::Allocator Alloc>
+	template <hfog::CtAllocator Alloc>
 	class Streamer
 	{
 
 	public:
 		Streamer() = delete;
-		Streamer(Alloc* alloc)
+		Streamer(Alloc* alloc, size_t maxPkgs)
 			:
 			alloc(alloc),
-			queue(alloc)
+			queue(alloc, maxPkgs)
 		{}
 
 		[[nodiscard]] constexpr auto sendCreateObject(StreamerPkg::ObjectCreated pkg)
@@ -103,7 +103,7 @@ export namespace UACE::Map
 
 	private:
 		Alloc* alloc{ nullptr };
-		UACE::UTILS::Queue<streamerPkg_t, 10, Alloc> queue;
+		fovere::Transport::Queue<streamerPkg_t, Alloc> queue;
 
 	};
 

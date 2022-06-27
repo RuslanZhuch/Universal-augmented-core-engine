@@ -85,7 +85,7 @@ int WINAPI WinMain(
     const auto width{ cRc.right - cRc.left };
     const auto height{ cRc.bottom - cRc.top };
 
-    if (!renderer.init(hWnd, width, height) || !renderer.initGUI(hWnd))
+    if (!renderer.init(hWnd, width, height))
     {
         return 1;
     }

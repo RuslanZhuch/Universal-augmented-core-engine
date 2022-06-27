@@ -11,6 +11,8 @@ module;
 #include <span>
 #include <latch>
 #include <variant>
+#include <vector>
+#include <barrier>
 
 #include "imgui/imgui.h"
 
@@ -20,20 +22,21 @@ module;
 export module RenderCore;
 import D3d12Utils;
 import Camera;
-import UACEQueue;
+import hfog.Core;
+import hfog.Alloc;
+
+import fovere.Transport.Queue;
 
 import UACEMemPool;
-import UACEUnifiedBlockAllocator;
 
 import UACEMapStreamer;
-import UACEMeshDataCache;
-import UACEDirectoryHeader;
-import UACEArray;
+//import UACEMeshDataCache;
+//import UACEDirectoryHeader;
 
 import UACEDeviationDecoder;
 import UACEPkgBlobCoder;
 
-using namespace UACE::MemManager::Literals;
+using namespace hfog::MemoryUtils::Literals;
 
 export struct Vertex
 {
@@ -88,6 +91,7 @@ struct PerObjectConstants
 	DirectX::XMFLOAT4X4 worldViewProj{};
 
 };
+using threadAlloc_t = hfog::Alloc::UnifiedExt<256_B, 9_MB>;
 
 export namespace Purr
 {
@@ -128,13 +132,18 @@ export namespace Purr
 		Renderer(Renderer&&) = delete;
 		Renderer& operator=(Renderer&&) = delete;
 
-		Renderer() = default;
+		Renderer() :
+			syncWorkerMain(2),
+			syncMainWork(2)
+		{	}
 		~Renderer() = default;
 
 		bool init(HWND window, UINT width, UINT height)
 		{
 			if (!this->initD3d12(window, width, height))
 				return false;
+
+			this->window = window;
 
 			this->camera.setPosition({ 5.f, 5.f, 5.f, 1.f });
 
@@ -143,36 +152,45 @@ export namespace Purr
 				this->streamerThreadLogic(stoken);
 			};
 			this->thStreamer = std::jthread(thFuc);
+			this->thUIWork = std::jthread([this, width, height](std::stop_token stoken) {this->uiWorker(stoken, width, height); });
+			this->thLogicWork = std::jthread([this](std::stop_token stoken) {this->logicWorker(stoken); });
 
+			this->qCmd->Signal(this->fence.Get(), 0);
 			return true;
 		}
 
 		void streamerThreadLogic(std::stop_token stoken)
 		{
 
-			using ump = umem::Pool;
+//			using ump = umem::Pool;
+//
+//			umem::Pool pool(10_MB);
+//			umem::Domain* domain{ pool.createDomain(10_MB) };
+//
+//			namespace upa = umem::UnifiedBlockAllocator;
 
-			umem::Pool pool(10_MB);
-			umem::Domain* domain{ pool.createDomain(10_MB) };
+			std::vector<byte_t> memoryPool(10_MB);
+			hfog::MemoryBlock poolBlock;
+			poolBlock.ptr = memoryPool.data();
+			poolBlock.size = memoryPool.size();
 
-			namespace upa = umem::UnifiedBlockAllocator;
-			upa::UnifiedBlockAllocator ubAlloc{ upa::createAllocator(domain, 9_MB) };
+			threadAlloc_t ubAlloc(poolBlock);
 
 			//const auto cmdExeResult{ system("py test_objects/server.py") };
 
-			static constexpr size_t MESH_CACHE_SIZE{ 5 };
-			UACE::Containers::Array<
-				UACE::Map::StaticMeshCache<upa::UnifiedBlockAllocator>, 
-				MESH_CACHE_SIZE,
-				upa::UnifiedBlockAllocator
-			> aMeshCache(&ubAlloc);
+//			static constexpr size_t MESH_CACHE_SIZE{ 5 };
+//			UACE::Containers::Array<
+//				UACE::Map::StaticMeshCache<upa::UnifiedBlockAllocator>, 
+//				MESH_CACHE_SIZE,
+//				upa::UnifiedBlockAllocator
+//			> aMeshCache(&ubAlloc);
 
-			for (size_t id{ 0 }; id < MESH_CACHE_SIZE; ++id)
-			{
-//				aMeshCache.append()
-			}
+//			for (size_t id{ 0 }; id < MESH_CACHE_SIZE; ++id)
+//			{
+////				aMeshCache.append()
+//			}
 
-			UACE::Map::DirectoryHeader(&ubAlloc);
+//			UACE::Map::DirectoryHeader(&ubAlloc);
 
 			std::latch sync(2);
 
@@ -189,7 +207,7 @@ export namespace Purr
 			//	}) };
 			//sync.arrive_and_wait();
 
-			UACE::Map::Streamer<upa::UnifiedBlockAllocator> streamer(&ubAlloc);
+			UACE::Map::Streamer<threadAlloc_t> streamer(&ubAlloc, 16);
 			this->pStreamer = &streamer;
 
 			const auto cbOnCameraCreation = [](size_t objId, std::span<const char> metadata)
@@ -243,6 +261,9 @@ export namespace Purr
 				onCamera };
 			UACE::DeviationDecoder devDecoder(&ubAlloc, desc, "loggerDatabase.sqlite", "127.0.0.1", 50007, 5_MB);
 			
+			this->atStreamerReady.test_and_set();
+			this->atStreamerReady.notify_all();
+
 			while (!stoken.stop_requested())
 			{
 				devDecoder.tick();
@@ -257,118 +278,194 @@ export namespace Purr
 
 		}
 
-		void draw(UINT width, UINT height)
+		void logicWorker(std::stop_token stoken)
 		{
 
-			this->commandAlloc->Reset();
-			this->cmdList->Reset(this->commandAlloc.Get(), this->pso.Get());
+			this->atStreamerReady.wait(false);
 
-			ImGui_ImplDX12_NewFrame();
-			ImGui_ImplWin32_NewFrame();
-			ImGui::NewFrame();
-
-			static float f = 0.0f;
-			static int counter = 0;
-
-			static bool bShowCamControls{ false };
-
-			if (ImGui::BeginMainMenuBar())
-			{
-				if (ImGui::BeginMenu("Tools"))
-				{
-					ImGui::MenuItem("Show camera controls", NULL, &bShowCamControls);
-					ImGui::EndMenu();
-				}
-				ImGui::EndMainMenuBar();
-			}
-
-			static float camPos[]{5.f, -4.61f, 1.92f};
-			static float camRot[]{ 75.3f, 0.575f, 0.706f, 0.412f };
-			static float camDir[3];
-			static float camUp[3];
-			static const char* types[]{ "Perspective", "Orthographic"};
-			static const char* currentType{ types[0] };
-			static float orthographicScale{ 6.8f };
-
-			static float clipStart{ 0.001f };
-			static float clipEnd{ 100.f };
-
-			static float aspectRatio{ static_cast<float>(width) / height };
-			
-			static float fov{ 39.6f };
-
-			if (bShowCamControls)
+			while (!stoken.stop_requested())
 			{
 
-				ImGui::Begin("Camera controls");
-				ImGui::SliderFloat3("Position", camPos, -5.f, 5.f);
-				this->camera.setPosition(DirectX::XMFLOAT4(-camPos[0], camPos[2], -camPos[1], 1.f));
-				//ImGui::SliderFloat3("Direction", camDir, -1.f, 1.f);
-				//ImGui::SliderFloat3("Up vector", camUp, -1.f, 1.f);
-				ImGui::SliderFloat("Rotation Angle", camRot, -180.f, 180.f);
-				ImGui::SliderFloat3("Rotation Axis", camRot + 1, -1.f, 1.f);
-				this->camera.setRotation(DirectX::XMConvertToRadians(camRot[0]), camRot[1], -camRot[3], camRot[2]);
+				Purr::Camera localCamera{ };
 
-				if (ImGui::BeginCombo("Camera type", currentType))
-				{
-					for (int n = 0; n < IM_ARRAYSIZE(types); n++)
-					{
-						bool bSelected = (currentType == types[n]);
-						if (ImGui::Selectable(types[n], bSelected))
-						{
-							currentType = types[n];
-						}
-						if (bSelected)
-							ImGui::SetItemDefaultFocus();
-					}
-					ImGui::EndCombo();
-				}
-
-
-				if (currentType == types[0])
-				{
-					ImGui::SliderFloat("Aspect ratio", &aspectRatio, 0.01f, 100.f, "%.3f", ImGuiSliderFlags_Logarithmic);
-					this->camera.setAspectRatio(aspectRatio);
-					ImGui::SliderFloat("Fov", &fov, 0.367f, 173.f);
-					this->camera.setFov(DirectX::XMConvertToRadians(fov));
-					this->camera.setType(Purr::Camera::Type::PERSPECTIVE);
-				}
-				else if (currentType == types[1])
-				{
-					ImGui::SliderFloat("Orthographic scale", &orthographicScale, 0.01f, 1000.f, "%.3f", ImGuiSliderFlags_Logarithmic);
-					this->camera.setOrthographicScale(orthographicScale);
-					this->camera.setType(Purr::Camera::Type::ORTHOGRAPHIC);
-				}
-
-				ImGui::SliderFloat("Clip start", &clipStart, 0.001f, clipEnd - 0.01f, "%.3f", ImGuiSliderFlags_Logarithmic);
-				this->camera.setClipStart(clipStart);
-				ImGui::SliderFloat("Clip end", &clipEnd, clipStart + 0.01f, 1000.f, "%.3f", ImGuiSliderFlags_Logarithmic);
-				this->camera.setClipEnd(clipEnd);
-
-				ImGui::End();
-
-			}
-			else
-			{
 				const auto vPkg{ this->pStreamer->getStreamPkg() };
 				if (std::holds_alternative<UACE::Map::StreamerPkg::CameraData>(vPkg))
 				{
 					const auto camData{ std::get<UACE::Map::StreamerPkg::CameraData>(vPkg).camera };
-					this->camera.setPosition(DirectX::XMFLOAT4(-camData.posX, camData.posZ, -camData.posY, 1.f));
-					this->camera.setRotation(camData.rotAngle, camData.rotX, -camData.rotZ, camData.rotY);
-					this->camera.setAspectRatio(camData.aspectRatio);
-					this->camera.setFov(camData.fov);
-					this->camera.setType(static_cast<Purr::Camera::Type>(camData.type));
-					this->camera.setClipStart(camData.clipStart);
-					this->camera.setClipEnd(camData.clipEnd);
-					this->camera.setOrthographicScale(camData.orthographicScale);
+					localCamera.setPosition(DirectX::XMFLOAT4(-camData.posX, camData.posZ, -camData.posY, 1.f));
+					localCamera.setRotation(camData.rotAngle, camData.rotX, -camData.rotZ, camData.rotY);
+					localCamera.setAspectRatio(camData.aspectRatio);
+					localCamera.setFov(camData.fov);
+					localCamera.setType(static_cast<Purr::Camera::Type>(camData.type));
+					localCamera.setClipStart(camData.clipStart);
+					localCamera.setClipEnd(camData.clipEnd);
+					localCamera.setOrthographicScale(camData.orthographicScale);
+					this->streamedCameraData.store(localCamera);
 				}
+
 			}
 
-			ImGui::Render();
+		}
 
-			this->cmdList->RSSetViewports(1, &this->vp);
-			this->cmdList->RSSetScissorRects(1, &this->scissor);
+		void uiWorker(std::stop_token stoken, UINT width, UINT height)
+		{
+
+			if (!this->initGUI(this->window))
+				return;
+
+			cptr_t<ID3D12CommandAllocator> cmdListAllocator{ nullptr };
+			cptr_t<ID3D12GraphicsCommandList> renderCmdList{ nullptr };
+
+			const auto hCmdAlloc{ this->device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE::D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&cmdListAllocator)) };
+			if (FAILED(hCmdAlloc))
+			{
+				assert(false);
+				return;
+			}
+
+			const auto hCmdList{ this->device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE::D3D12_COMMAND_LIST_TYPE_DIRECT,
+				cmdListAllocator.Get(), nullptr,  IID_PPV_ARGS(&renderCmdList)) };
+			if (FAILED(hCmdList))
+			{
+				assert(false);
+				return;
+			}
+
+			renderCmdList->Close();
+
+			while (!stoken.stop_requested())
+			{
+
+				Purr::Camera localCamera{ this->uiCameraData.load() };
+
+				ImGui_ImplDX12_NewFrame();
+				ImGui_ImplWin32_NewFrame();
+				ImGui::NewFrame();
+
+				static float f = 0.0f;
+				static int counter = 0;
+
+				static bool bShowCamControls{ false };
+
+				if (ImGui::BeginMainMenuBar())
+				{
+					if (ImGui::BeginMenu("Tools"))
+					{
+						ImGui::MenuItem("Show camera controls", NULL, &bShowCamControls);
+						ImGui::EndMenu();
+					}
+					ImGui::EndMainMenuBar();
+				}
+
+				static float camPos[]{ 5.f, -4.61f, 1.92f };
+				static float camRot[]{ 75.3f, 0.575f, 0.706f, 0.412f };
+				static float camDir[3];
+				static float camUp[3];
+				static const char* types[]{ "Perspective", "Orthographic" };
+				static const char* currentType{ types[0] };
+				static float orthographicScale{ 6.8f };
+
+				static float clipStart{ 0.001f };
+				static float clipEnd{ 100.f };
+
+				static float aspectRatio{ static_cast<float>(width) / height };
+
+				static float fov{ 39.6f };
+
+				if (bShowCamControls)
+				{
+
+					this->atbUseUICameraData.store(true, std::memory_order_relaxed);
+
+					ImGui::Begin("Camera controls");
+					ImGui::SliderFloat3("Position", camPos, -5.f, 5.f);
+					localCamera.setPosition(DirectX::XMFLOAT4(-camPos[0], camPos[2], -camPos[1], 1.f));
+					//ImGui::SliderFloat3("Direction", camDir, -1.f, 1.f);
+					//ImGui::SliderFloat3("Up vector", camUp, -1.f, 1.f);
+					ImGui::SliderFloat("Rotation Angle", camRot, -180.f, 180.f);
+					ImGui::SliderFloat3("Rotation Axis", camRot + 1, -1.f, 1.f);
+					localCamera.setRotation(DirectX::XMConvertToRadians(camRot[0]), camRot[1], -camRot[3], camRot[2]);
+
+					if (ImGui::BeginCombo("Camera type", currentType))
+					{
+						for (int n = 0; n < IM_ARRAYSIZE(types); n++)
+						{
+							bool bSelected = (currentType == types[n]);
+							if (ImGui::Selectable(types[n], bSelected))
+							{
+								currentType = types[n];
+							}
+							if (bSelected)
+								ImGui::SetItemDefaultFocus();
+						}
+						ImGui::EndCombo();
+					}
+
+					if (currentType == types[0])
+					{
+						ImGui::SliderFloat("Aspect ratio", &aspectRatio, 0.01f, 100.f, "%.3f", ImGuiSliderFlags_Logarithmic);
+						localCamera.setAspectRatio(aspectRatio);
+						ImGui::SliderFloat("Fov", &fov, 0.367f, 173.f);
+						localCamera.setFov(DirectX::XMConvertToRadians(fov));
+						localCamera.setType(Purr::Camera::Type::PERSPECTIVE);
+					}
+					else if (currentType == types[1])
+					{
+						ImGui::SliderFloat("Orthographic scale", &orthographicScale, 0.01f, 1000.f, "%.3f", ImGuiSliderFlags_Logarithmic);
+						localCamera.setOrthographicScale(orthographicScale);
+						localCamera.setType(Purr::Camera::Type::ORTHOGRAPHIC);
+					}
+
+					ImGui::SliderFloat("Clip start", &clipStart, 0.001f, clipEnd - 0.01f, "%.3f", ImGuiSliderFlags_Logarithmic);
+					localCamera.setClipStart(clipStart);
+					ImGui::SliderFloat("Clip end", &clipEnd, clipStart + 0.01f, 1000.f, "%.3f", ImGuiSliderFlags_Logarithmic);
+					localCamera.setClipEnd(clipEnd);
+
+					ImGui::End();
+
+				}
+				else
+				{
+					this->atbUseUICameraData.store(false, std::memory_order_relaxed);
+				}
+
+				this->uiCameraData.store(localCamera);
+
+				ImGui::Render();
+
+				this->syncMainWork.arrive_and_wait();
+
+				cmdListAllocator->Reset();
+				renderCmdList->Reset(cmdListAllocator.Get(), nullptr);
+
+				auto backBufferView{ this->getCurrentBackBufferView() };
+				auto depthStencilView{ this->getDepthStencilView() };
+				renderCmdList->OMSetRenderTargets(1, &backBufferView, true, &depthStencilView);
+				renderCmdList->RSSetViewports(1, &this->vp);
+				renderCmdList->RSSetScissorRects(1, &this->scissor);
+
+				auto heap{ this->srvHeap.Get() };
+				renderCmdList->SetDescriptorHeaps(1, &heap);
+				ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), renderCmdList.Get());
+
+				renderCmdList->Close();
+				{
+					ID3D12CommandList* listArray[]{ renderCmdList.Get() };
+					this->qCmd->ExecuteCommandLists(_countof(listArray), listArray);
+				}
+
+				this->syncWorkerMain.arrive();
+
+
+			}
+
+		}
+
+		void draw(UINT width, UINT height)
+		{
+
+			this->preparationCommandAlloc->Reset();
+			this->cmdList->Reset(this->preparationCommandAlloc.Get(), this->pso.Get());
 
 			CD3DX12_RESOURCE_BARRIER toRtBarrier{ CD3DX12_RESOURCE_BARRIER::Transition(this->getCurrentBackBuffer(),
 				D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_RENDER_TARGET) };
@@ -381,27 +478,64 @@ export namespace Purr
 			auto backBufferView{ this->getCurrentBackBufferView() };
 			auto depthStencilView{ this->getDepthStencilView() };
 			this->cmdList->OMSetRenderTargets(1, &backBufferView, true, &depthStencilView);
+			this->cmdList->RSSetViewports(1, &this->vp);
+			this->cmdList->RSSetScissorRects(1, &this->scissor);
+//			this->cmdList->Close();
+//			{
+//				ID3D12CommandList* listArray[]{ this->cmdList.Get() };
+//				this->qCmd->ExecuteCommandLists(_countof(listArray), listArray);
+//			}
+//			this->syncMainWork.arrive();
 
-			this->drawCube(width, height);
+//			this->finalCommandAlloc->Reset();
+//			this->cmdList->Reset(this->finalCommandAlloc.Get(), nullptr);
+//			this->cmdList->OMSetRenderTargets(1, &backBufferView, true, &depthStencilView);
 
 			auto heap{ this->srvHeap.Get() };
 			this->cmdList->SetDescriptorHeaps(1, &heap);
-			ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), this->cmdList.Get());
+			
+			this->drawCube(width, height);
 
+			this->cmdList->Close();
+			{
+				ID3D12CommandList* listArray[]{ this->cmdList.Get() };
+				this->qCmd->ExecuteCommandLists(_countof(listArray), listArray);
+			}
+			this->syncMainWork.arrive();
+
+			this->finalCommandAlloc->Reset();
+			this->cmdList->Reset(this->finalCommandAlloc.Get(), nullptr);
+			
 			CD3DX12_RESOURCE_BARRIER toPresentBarrier{ CD3DX12_RESOURCE_BARRIER::Transition(this->getCurrentBackBuffer(),
 				D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_PRESENT) };
 			this->cmdList->ResourceBarrier(1, &toPresentBarrier);
 
 			this->cmdList->Close();
 
-			ID3D12CommandList* listArray[]{ this->cmdList.Get() };
-			this->qCmd->ExecuteCommandLists(_countof(listArray), listArray);
+			this->syncWorkerMain.arrive_and_wait();
+			{
+				ID3D12CommandList* listArray[]{ this->cmdList.Get() };
+				this->qCmd->ExecuteCommandLists(_countof(listArray), listArray);
+			}
+
+			++this->syncFenceMainId;
+			this->qCmd->Signal(this->fence.Get(), this->syncFenceMainId);
 
 			this->swapChain->Present(0, 0);
 
 			this->currRtvId = (this->currRtvId + 1) % SWAP_CHAN_BUFFERS_COUNT;
 
-			this->flushCommandQueue();
+			if (this->fence->GetCompletedValue() < this->syncFenceMainId)
+			{
+
+				auto eventHandler{ CreateEventEx(nullptr, "", 0, EVENT_ALL_ACCESS) };
+				this->fence->SetEventOnCompletion(this->syncFenceMainId, eventHandler);
+				WaitForSingleObject(eventHandler, INFINITE);
+				CloseHandle(eventHandler);
+
+			}
+
+//			this->flushCommandQueue();
 			
 		}
 
@@ -521,30 +655,30 @@ export namespace Purr
 			this->cBuffer.init(this->device.Get());
 			this->createRootSignature();
 
-			this->vShader = D3D12Utils::loadShader("../Debug/VertexShader.cso");
-			this->pShader = D3D12Utils::loadShader("../Debug/PixelShader.cso");
+			this->vShader = D3D12Utils::loadShader("../x64/Debug/VertexShader.cso");
+			this->pShader = D3D12Utils::loadShader("../x64/Debug/PixelShader.cso");
 
 			if (!this->createGPO())
 			{
 				return false;
 			}
-
+			UINT initFenceId{ 0 };
 			{
 				this->cmdList->Close();
 				const auto cmdLists{ std::to_array({reinterpret_cast<ID3D12CommandList*>(this->cmdList.Get())}) };
 				this->qCmd->ExecuteCommandLists(1, cmdLists.data());
-				this->flushCommandQueue();
+				initFenceId = this->flushCommandQueue(initFenceId);
 			}
 
-			this->commandAlloc->Reset();
-			this->cmdList->Reset(this->commandAlloc.Get(), this->pso.Get());
+//			this->preparationCommandAlloc->Reset();
+// 			this->cmdList->Reset(this->preparationCommandAlloc.Get(), this->pso.Get());
 
-			{
-				this->cmdList->Close();
-				const auto cmdLists{ std::to_array({reinterpret_cast<ID3D12CommandList*>(this->cmdList.Get())}) };
-				this->qCmd->ExecuteCommandLists(1, cmdLists.data());
-				this->flushCommandQueue();
-			}
+//			{
+//				this->cmdList->Close();
+//				const auto cmdLists{ std::to_array({reinterpret_cast<ID3D12CommandList*>(this->cmdList.Get())}) };
+//				this->qCmd->ExecuteCommandLists(1, cmdLists.data());
+//				this->flushCommandQueue();
+//			}
 
 			return true;
 
@@ -579,8 +713,15 @@ export namespace Purr
 		bool initFenceAndDescriptorsData()
 		{
 
-			const auto hFenceCreation{ this->device->CreateFence(0, D3D12_FENCE_FLAGS::D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&this->fence)) };
-			if (FAILED(hFenceCreation))
+			
+			if (const auto hFenceCreation{ this->device->CreateFence(0, D3D12_FENCE_FLAGS::D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&this->initializationFence)) }; 
+				FAILED(hFenceCreation))
+			{
+				return false;
+			}
+
+			if (const auto hFenceCreation{ this->device->CreateFence(0, D3D12_FENCE_FLAGS::D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&this->fence)) }; 
+				FAILED(hFenceCreation))
 			{
 				return false;
 			}
@@ -628,21 +769,29 @@ export namespace Purr
 				return false;
 			}
 
-			const auto hCmdAlloc{ this->device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE::D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&this->commandAlloc)) };
-			if (FAILED(hCmdAlloc))
+			const auto hCmdAllocPreparation{ this->device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE::D3D12_COMMAND_LIST_TYPE_DIRECT, 
+				IID_PPV_ARGS(&this->preparationCommandAlloc)) };
+			if (FAILED(hCmdAllocPreparation))
+			{
+				return false;
+			}
+
+			const auto hCmdAllocFinal{ this->device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE::D3D12_COMMAND_LIST_TYPE_DIRECT,
+				IID_PPV_ARGS(&this->finalCommandAlloc)) };
+			if (FAILED(hCmdAllocFinal))
 			{
 				return false;
 			}
 
 			const auto hCmdList{ this->device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE::D3D12_COMMAND_LIST_TYPE_DIRECT, 
-				this->commandAlloc.Get(), nullptr,  IID_PPV_ARGS(&this->cmdList)) };
+				this->preparationCommandAlloc.Get(), nullptr,  IID_PPV_ARGS(&this->cmdList)) };
 			if (FAILED(hCmdList))
 			{
 				return false;
 			}
 
 			this->cmdList->Close();
-			this->cmdList->Reset(this->commandAlloc.Get(), nullptr);
+			this->cmdList->Reset(this->preparationCommandAlloc.Get(), nullptr);
 
 			return true;
 
@@ -890,21 +1039,23 @@ export namespace Purr
 
 		}
 
-		void flushCommandQueue()
+		UINT flushCommandQueue(UINT currFence)
 		{
 
-			this->currFenceId++;
+			currFence++;
 
-			this->qCmd->Signal(this->fence.Get(), this->currFenceId);
-			if (this->fence->GetCompletedValue() < this->currFenceId)
+			this->qCmd->Signal(this->initializationFence.Get(), currFence);
+			if (this->initializationFence->GetCompletedValue() < currFence)
 			{
 
 				auto eventHandler{ CreateEventEx(nullptr, "", 0, EVENT_ALL_ACCESS) };
-				this->fence->SetEventOnCompletion(this->currFenceId, eventHandler);
+				this->fence->SetEventOnCompletion(currFence, eventHandler);
 				WaitForSingleObject(eventHandler, INFINITE);
 				CloseHandle(eventHandler);
 
 			}
+
+			return currFence;
 
 		}
 
@@ -914,6 +1065,15 @@ export namespace Purr
 			this->cmdList->IASetVertexBuffers(0, 1, &this->vbv);
 			this->cmdList->IASetIndexBuffer(&this->ibv);
 			this->cmdList->IASetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY::D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+			if (this->atbUseUICameraData.load(std::memory_order_relaxed))
+			{
+				this->camera = this->uiCameraData.load();
+			}
+			else
+			{
+				this->camera = this->streamedCameraData.load();
+			}
 
 			const auto pos{ this->camera.getPosition() };
 
@@ -969,7 +1129,7 @@ export namespace Purr
 
 			this->cmdList->SetGraphicsRootConstantBufferView(0, this->cBuffer->GetGPUVirtualAddress());
 
-			this->cmdList->DrawIndexedInstanced(indices.size(), 1, 0, 0, 0);
+			this->cmdList->DrawIndexedInstanced(static_cast<UINT>(indices.size()), 1, 0, 0, 0);
 
 		}
 
@@ -985,11 +1145,14 @@ export namespace Purr
 
 		cptr_t<ID3D12Device> device{ nullptr };
 
+		cptr_t<ID3D12Fence> initializationFence{ nullptr };
 		cptr_t<ID3D12Fence> fence{ nullptr };
 
 		cptr_t<ID3D12CommandQueue> qCmd{ nullptr };
-		cptr_t<ID3D12CommandAllocator> commandAlloc{ nullptr };
+		cptr_t<ID3D12CommandAllocator> preparationCommandAlloc{ nullptr };
+		cptr_t<ID3D12CommandAllocator> finalCommandAlloc{ nullptr };
 		cptr_t<ID3D12GraphicsCommandList> cmdList{ nullptr };
+		cptr_t<ID3D12GraphicsCommandList> uiCmdList{ nullptr };
 
 		cptr_t<IDXGISwapChain> swapChain{ nullptr };
 
@@ -1028,12 +1191,24 @@ export namespace Purr
 		D3D12_VIEWPORT vp{};
 		RECT scissor{};
 
-		UINT64 currFenceId{ 0 };
+		UINT64 syncFenceMainId{ 0 };
 
 		Purr::Camera camera{};
-		std::jthread thStreamer;
+		std::atomic<Purr::Camera> uiCameraData;
+		std::atomic<Purr::Camera> streamedCameraData;
+		std::atomic_bool atbUseUICameraData{  };
 
-		UACE::Map::Streamer<umem::UnifiedBlockAllocator::UnifiedBlockAllocator>* pStreamer;
+		std::jthread thStreamer;
+		std::jthread thUIWork;
+		std::jthread thLogicWork;
+
+		std::atomic_flag atStreamerReady = ATOMIC_FLAG_INIT;
+
+		UACE::Map::Streamer<threadAlloc_t>* pStreamer;
+		std::barrier<std::_No_completion_function> syncMainWork;
+		std::barrier<std::_No_completion_function> syncWorkerMain;
+
+		HWND window{};
 
 	};
 

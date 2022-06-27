@@ -3,16 +3,19 @@
 #include "gtest/gtest.h"
 
 //#include "../UACEMemManger/UACEDomain.h"
-import MemoryManagerCommon;
+//import MemoryManagerCommon;
 import UACEMemPool;
-import UACEUnifiedBlockAllocator;
-import UACEQueue;
+//import UACEUnifiedBlockAllocator;
+//import UACEQueue;
 import ScriptData;
 import UACEBasicScriptFuncs;
-import UACEArray;
-import UACEScriptDecoder;
-import UACEScriptLoader;
-import UACEScript;
+
+import hfog.Core;
+import hfog.Alloc;
+//import UACEArray;
+//import UACEScriptDecoder;
+//import UACEScriptLoader;
+//import UACEScript;
 //import UACEUnifiedBlockAllocator;
 
 #include <thread>
@@ -22,7 +25,7 @@ import UACEScript;
 #include <fstream>
 #include <array>
 
-using namespace UACE::MemManager::Literals;
+using namespace hfog::MemoryUtils::Literals;
 
 template <typename arr0, typename arr1>
 constexpr auto checkEqual(const arr0& a0, const arr1& a1, auto size)
@@ -37,15 +40,15 @@ constexpr auto checkEqual(const arr0& a0, const arr1& a1, auto size)
 	return true;
 }
 
-TEST(MemManager, MemManagerLiterals)
-{
-
-	EXPECT_EQ(32, 32_B);
-	EXPECT_EQ(32 * 1024, 32_kB);
-	EXPECT_EQ(32 * 1024 * 1024, 32_MB);
-
-}
-
+//TEST(MemManager, MemManagerLiterals)
+//{
+//
+//	EXPECT_EQ(32, 32_B);
+//	EXPECT_EQ(32 * 1024, 32_kB);
+//	EXPECT_EQ(32 * 1024 * 1024, 32_MB);
+//
+//}
+//
 TEST(MemManger, PoolAlloc) 
 {
 
@@ -98,7 +101,7 @@ TEST(MemManager, Domain)
 
 	}
 
-	const umem::MemSize reservedSize0{ domain->reserveMemory(64_B) };
+	const mem_t reservedSize0{ domain->reserveMemory(64_B) };
 	EXPECT_EQ(reservedSize0, 64_B);
 	{
 		EXPECT_EQ(domain->getOffset(), 0);
@@ -108,7 +111,7 @@ TEST(MemManager, Domain)
 
 	{
 
-		const umem::MemSize reservedSize1{ domain->reserveMemory(64_B) };
+		const mem_t reservedSize1{ domain->reserveMemory(64_B) };
 		EXPECT_EQ(reservedSize1, 64_B);
 
 		EXPECT_EQ(domain->getOffset(), 0);
@@ -119,7 +122,7 @@ TEST(MemManager, Domain)
 
 	{
 
-		const umem::MemSize reservedSize1{ domain->reserveMemory(32_kB) };
+		const mem_t reservedSize1{ domain->reserveMemory(32_kB) };
 		EXPECT_EQ(reservedSize1, 0);
 
 		EXPECT_EQ(domain->getOffset(), 0);
@@ -139,7 +142,7 @@ TEST(MemManager, Domain)
 	{
 		umem::Domain* domain3{ pool.createDomain(16_kB) };
 		EXPECT_NE(domain3, nullptr);
-		const umem::MemSize reservedSize3{ domain3->reserveMemory(64_B) };
+		const mem_t reservedSize3{ domain3->reserveMemory(64_B) };
 		EXPECT_EQ(reservedSize3, 64_B);
 		{
 			EXPECT_EQ(domain3->getOffset(), 48_kB);
@@ -161,7 +164,7 @@ TEST(MemManager, Domain)
 			EXPECT_EQ(domain3->getFreeSpace(), (16_kB));
 		}
 
-		const umem::MemSize reservedSize3Res{ domain3->reserveMemory(64_B) };
+		const mem_t reservedSize3Res{ domain3->reserveMemory(64_B) };
 		EXPECT_EQ(reservedSize3Res, 64_B);
 		{
 			EXPECT_EQ(domain3->getOffset(), 48_kB);
@@ -180,7 +183,7 @@ TEST(MemManager, Domain)
 	
 }
 
-TEST(MemManager, UnifiedBlockLogic)
+/*TEST(MemManager, UnifiedBlockLogic)
 {
 	std::array<char, 16_B> aBuffer{};
 	char* buffer = aBuffer.data();
@@ -873,4 +876,4 @@ TEST(Scripts, BasicLogicScript)
 	EXPECT_EQ(UACE::ScriptFuncs::gObj1.data2, -6);
 	EXPECT_EQ(UACE::ScriptFuncs::gObj1.data3, 13);
 
-}
+}*/

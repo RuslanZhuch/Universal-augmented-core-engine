@@ -11,10 +11,11 @@ import UACEClient;
 import UACEJsonCoder;
 import UACEDeviationLogger;
 import UACEViewerUtils;
-import UACEAllocator;
-import MemoryManagerCommon;
+//import UACEAllocator;
+import hfog.Core;
+//import MemoryManagerCommon;
 
-using namespace UACE::MemManager::Literals;
+using namespace hfog::MemoryUtils::Literals;
 
 export namespace UACE::Deviation
 {
@@ -56,7 +57,7 @@ export namespace UACE::Deviation
 export namespace UACE
 {
 
-	template <UACE::Deviation::DeviationDesc DevDesc, UACE::MemManager::Allocator Alloc>
+	template <UACE::Deviation::DeviationDesc DevDesc, hfog::CtAllocator Alloc>
 	class DeviationDecoder
 	{
 

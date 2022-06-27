@@ -1,8 +1,8 @@
 export module UACEDomain;
 
-import MemoryManagerCommon;
+import hfog.Alloc;
 
-using namespace UACE::MemManager::Literals;
+using namespace hfog::MemoryUtils::Literals;
 
 export namespace UACE::MemManager
 {
@@ -18,7 +18,7 @@ export namespace UACE::MemManager
 
 		constexpr Domain() = default;
 
-		constexpr Domain(MemSize size, MemSize offset, char* rootPtr)
+		constexpr Domain(mem_t size, mem_t offset, char* rootPtr)
 			: size(size), offset(offset), freeSpace(size), rootPtr(rootPtr)
 		{
 		}
@@ -27,10 +27,10 @@ export namespace UACE::MemManager
 		[[nodiscard]] constexpr auto getSize() const noexcept { return this->size; }
 		[[nodiscard]] constexpr auto getFreeSpace() const noexcept { return this->freeSpace; }
 
-		[[nodiscard]] constexpr MemSize reserveMemory(MemSize size)
+		[[nodiscard]] constexpr mem_t reserveMemory(mem_t size)
 		{
 			
-			constexpr MemSize minMemBlock = 16_B;
+			constexpr mem_t minMemBlock = 16_B;
 			const auto numOfMemBlocks{ size / minMemBlock };
 			const auto fraction{ size % minMemBlock };
 			const auto bNeedExpand{ fraction > 0 };
@@ -71,9 +71,9 @@ export namespace UACE::MemManager
 
 	private:
 
-		MemSize offset{ 0 };
-		MemSize size{ 0 };
-		MemSize freeSpace{ 0 };
+		mem_t offset{ 0 };
+		mem_t size{ 0 };
+		mem_t freeSpace{ 0 };
 
 		char* rootPtr{ nullptr };
 
