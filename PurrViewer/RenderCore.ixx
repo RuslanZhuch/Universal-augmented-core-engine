@@ -13,6 +13,7 @@ module;
 #include <variant>
 #include <vector>
 #include <barrier>
+#include <memory>
 
 #include "imgui/imgui.h"
 
@@ -24,6 +25,11 @@ import D3d12Utils;
 import Camera;
 import hfog.Core;
 import hfog.Alloc;
+import fovere.Array.Universal;
+import fovere.Array.DynamicCompact;
+import fovere.RingBuffer;
+import fovere.Map.Simple;
+import UACEGuardCopy;
 
 import fovere.Transport.Queue;
 
@@ -62,8 +68,19 @@ static auto vertices{ std::to_array<Vertex>(
 	Vertex(DirectX::XMFLOAT3(+1.0f, +1.0f, +1.0f), DirectX::XMFLOAT4(DirectX::Colors::White), DirectX::XMFLOAT2(0.0f, 0.0f)),
 	Vertex(DirectX::XMFLOAT3(+1.0f, -1.0f, +1.0f), DirectX::XMFLOAT4(DirectX::Colors::Black), DirectX::XMFLOAT2(1.0f, 0.0f))
 }) };
+static auto vertices2{ std::to_array<Vertex>(
+{
+	Vertex(DirectX::XMFLOAT3(-1.5f, -1.0f, -1.5f), DirectX::XMFLOAT4(DirectX::Colors::Black), DirectX::XMFLOAT2(0.0f, 1.0f)),
+	Vertex(DirectX::XMFLOAT3(-1.5f, +1.0f, -1.5f), DirectX::XMFLOAT4(DirectX::Colors::White), DirectX::XMFLOAT2(0.0f, 0.0f)),
+	Vertex(DirectX::XMFLOAT3(+1.5f, +1.0f, -1.5f), DirectX::XMFLOAT4(DirectX::Colors::White), DirectX::XMFLOAT2(1.0f, 0.0f)),
+	Vertex(DirectX::XMFLOAT3(+1.5f, -1.0f, -1.5f), DirectX::XMFLOAT4(DirectX::Colors::Black), DirectX::XMFLOAT2(1.0f, 1.0f)),
+	Vertex(DirectX::XMFLOAT3(-1.5f, -1.0f, +1.5f), DirectX::XMFLOAT4(DirectX::Colors::Black), DirectX::XMFLOAT2(1.0f, 1.0f)),
+	Vertex(DirectX::XMFLOAT3(-1.5f, +1.0f, +1.5f), DirectX::XMFLOAT4(DirectX::Colors::White), DirectX::XMFLOAT2(0.0f, 1.0f)),
+	Vertex(DirectX::XMFLOAT3(+1.5f, +1.0f, +1.5f), DirectX::XMFLOAT4(DirectX::Colors::White), DirectX::XMFLOAT2(0.0f, 0.0f)),
+	Vertex(DirectX::XMFLOAT3(+1.5f, -1.0f, +1.5f), DirectX::XMFLOAT4(DirectX::Colors::Black), DirectX::XMFLOAT2(1.0f, 0.0f))
+}) };
 
-using index_t = uint16_t;
+using index_t = uint32_t;
 static auto indices{ std::to_array<index_t>({
 	// front face
 	0, 1, 2,
@@ -91,7 +108,58 @@ struct PerObjectConstants
 	DirectX::XMFLOAT4X4 worldViewProj{};
 
 };
-using threadAlloc_t = hfog::Alloc::UnifiedExt<256_B, 9_MB>;
+using threadAlloc_t = hfog::Alloc::UnifiedExt<1_kB, 38_MB>;
+using mainAllocator_t = hfog::Alloc::UnifiedExt<128_B, 128_kB>;
+
+//TODO: Test
+template<typename T, hfog::CtAllocator Alloc>
+class UPtr
+{
+public:
+	UPtr() = default;
+	UPtr(const UPtr&) = delete;
+	UPtr& operator=(const UPtr&) = delete;
+	UPtr(UPtr&&) = default;
+	UPtr& operator=(UPtr&&) = default;
+
+	void create(Alloc* externalAlloc, auto ... args)
+	{
+		this->data = externalAlloc->allocate(sizeof(T));
+		if (this->data.ptr == nullptr)
+			return;
+		this->allocator = externalAlloc;
+		auto constructedObject{ std::construct_at(reinterpret_cast<T*>(this->data.ptr), args...)};
+	}
+	~UPtr()
+	{
+		if (this->data.ptr == nullptr)
+			return;
+		this->allocator->deallocate(this->data);
+	}
+
+	T* operator->()
+	{
+		return reinterpret_cast<T*>(this->data.ptr);
+	}
+
+private:
+	hfog::MemoryBlock data{};
+	Alloc* allocator{ nullptr };
+};
+
+struct BufferUpdateInfo
+{
+	enum class TYPE
+	{
+		ALLOCATE,
+		DEALLOCATE
+	};
+	TYPE type{};
+	UINT verticesOffset{};
+	UINT indicesOffset{};
+	UINT verticesDataSize{};
+	UINT indicesDataSize{};
+};
 
 export namespace Purr
 {
@@ -99,12 +167,15 @@ export namespace Purr
 	template <typename T>
 	using cptr_t = Microsoft::WRL::ComPtr<T>;
 
+	using bufferInfoTransport_t = UPtr<fovere::Transport::Queue<BufferUpdateInfo, mainAllocator_t>, mainAllocator_t>;
+
 	constexpr DXGI_FORMAT DEPTH_STENCIL_FORMAT{ DXGI_FORMAT::DXGI_FORMAT_D24_UNORM_S8_UINT };
 
 	constexpr DXGI_FORMAT RENDER_TARGET_FORMAT{ DXGI_FORMAT::DXGI_FORMAT_R8G8B8A8_UNORM };
 	constexpr UINT SWAP_CHAN_BUFFERS_COUNT{ 2 };
 
 	namespace umem = UACE::MemManager;
+
 
 	class Renderer
 	{
@@ -132,9 +203,11 @@ export namespace Purr
 		Renderer(Renderer&&) = delete;
 		Renderer& operator=(Renderer&&) = delete;
 
-		Renderer() :
+		template <hfog::CtAllocator Alloc>
+		Renderer(Alloc* externalAlloc) :
 			syncWorkerMain(2),
-			syncMainWork(2)
+			syncMainWork(2),
+			mainAllocator(externalAlloc->allocate(256_kB))
 		{	}
 		~Renderer() = default;
 
@@ -142,6 +215,8 @@ export namespace Purr
 		{
 			if (!this->initD3d12(window, width, height))
 				return false;
+
+			this->bufferUpdateInfo.create(&this->mainAllocator, &this->mainAllocator, 4);
 
 			this->window = window;
 
@@ -152,6 +227,8 @@ export namespace Purr
 				this->streamerThreadLogic(stoken);
 			};
 			this->thStreamer = std::jthread(thFuc);
+			this->thGraphicsStreamer = std::jthread([this](std::stop_token stoken) {this->graphicsStreamWorker(stoken); });
+
 			this->thUIWork = std::jthread([this, width, height](std::stop_token stoken) {this->uiWorker(stoken, width, height); });
 			this->thLogicWork = std::jthread([this](std::stop_token stoken) {this->logicWorker(stoken); });
 
@@ -169,7 +246,7 @@ export namespace Purr
 //
 //			namespace upa = umem::UnifiedBlockAllocator;
 
-			std::vector<byte_t> memoryPool(10_MB);
+			std::vector<byte_t> memoryPool(40_MB);
 			hfog::MemoryBlock poolBlock;
 			poolBlock.ptr = memoryPool.data();
 			poolBlock.size = memoryPool.size();
@@ -210,14 +287,40 @@ export namespace Purr
 			UACE::Map::Streamer<threadAlloc_t> streamer(&ubAlloc, 16);
 			this->pStreamer = &streamer;
 
-			const auto cbOnCameraCreation = [](size_t objId, std::span<const char> metadata)
+			UACE::Map::Streamer<threadAlloc_t> graphicsStreamer(&ubAlloc, 16);
+			this->pGraphicsStreamer = &graphicsStreamer;
+
+			fovere::Buffer::Ring<char, 8, threadAlloc_t> meshCache(&ubAlloc, 10_MB);
+
+			const auto streamMeshData = [&](size_t objId, std::span<const char> metadata)
+			{
+				auto cachePtr{ meshCache.append(metadata.size()) };
+				assert(cachePtr != nullptr);
+				if (cachePtr == nullptr)
+				{
+					return;
+				}
+				std::memcpy(cachePtr, metadata.data(), metadata.size());
+
+				std::span<const char> target(cachePtr, metadata.size());
+//				this->meshDataTransport->push(target);
+
+				UACE::Map::StreamerPkg::MeshData meshData;
+				meshData.objId = objId;
+				meshData.blob = metadata;
+				this->pGraphicsStreamer->sendMeshData(meshData);
+			};
+
+			const auto cbOnCameraCreation = [this](size_t objId, std::span<const char> metadata)
 			{
 				objId = objId;
 			};
 
-			const auto cbOnStaticMeshCreation = [](size_t objId, std::span<const char> metadata)
+			const auto cbOnStaticMeshCreation = [&](size_t objId, std::span<const char> metadata)
 			{
-				objId = objId;
+				const auto bNewObjectSended(this->pStreamer->sendCreateObject({ objId }));
+				assert(bNewObjectSended);
+				streamMeshData(objId, metadata);
 			};
 
 			const auto cbOnRename = [](size_t objId, size_t, size_t, size_t, bool)
@@ -235,9 +338,9 @@ export namespace Purr
 				objId = 0;
 			};
 
-			const auto cbOnMesh = [](size_t objId, std::span<const char>)
+			const auto cbOnMesh = [&](size_t objId, std::span<const char> blob)
 			{
-				objId = 0; 
+				streamMeshData(objId, blob);
 			};
 
 			const auto onCamera = [this](size_t objId, std::span<const char> rawCameraData)
@@ -259,14 +362,19 @@ export namespace Purr
 				cbOnTransform, 
 				cbOnMesh, 
 				onCamera };
-			UACE::DeviationDecoder devDecoder(&ubAlloc, desc, "loggerDatabase.sqlite", "127.0.0.1", 50007, 5_MB);
-			
+			UACE::DeviationDecoder devDecoder(&ubAlloc, desc, "loggerDatabase.sqlite", "127.0.0.1", 50007, 10_MB);
+
 			this->atStreamerReady.test_and_set();
 			this->atStreamerReady.notify_all();
 
 			while (!stoken.stop_requested())
 			{
 				devDecoder.tick();
+				if (this->atAquiredMeshParts > 0)
+				{
+					meshCache.pop();
+					--atAquiredMeshParts;
+				}
 			}
 
 		}
@@ -461,6 +569,155 @@ export namespace Purr
 
 		}
 
+		void graphicsStreamWorker(std::stop_token stoken)
+		{
+
+//			fovere::Transport::Queue<BufferUpdateInfo, bufferUpdateTransportAlloc_t> infoQueue;
+//			this->bufferUpdateInfo = &infoQueue;
+
+			cptr_t<ID3D12CommandAllocator> cmdListAllocator{ nullptr };
+			cptr_t<ID3D12GraphicsCommandList> uploadCmdList{ nullptr };
+
+			const auto hCmdAlloc{ this->device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE::D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&cmdListAllocator)) };
+			if (FAILED(hCmdAlloc))
+			{
+				assert(false);
+				return;
+			}
+
+			const auto hCmdList{ this->device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE::D3D12_COMMAND_LIST_TYPE_DIRECT,
+				cmdListAllocator.Get(), nullptr,  IID_PPV_ARGS(&uploadCmdList)) };
+			if (FAILED(hCmdList))
+			{
+				assert(false);
+				return;
+			}
+			uploadCmdList->Close();
+
+			cptr_t<ID3D12Resource> uploader{ nullptr };
+
+			constexpr UINT64 UPLOAD_BUFFER_SIZE{ 10_MB };
+
+			D3D12_RESOURCE_DESC resourceDesc{ CD3DX12_RESOURCE_DESC::Buffer(UPLOAD_BUFFER_SIZE) };
+			D3D12_HEAP_PROPERTIES updloadHeapProperties{ CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE::D3D12_HEAP_TYPE_UPLOAD) };
+			if (FAILED(this->device->CreateCommittedResource(&updloadHeapProperties, D3D12_HEAP_FLAGS::D3D12_HEAP_FLAG_NONE,
+				&resourceDesc, D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_GENERIC_READ,
+				nullptr, IID_PPV_ARGS(&uploader))))
+			{
+				return;
+			}
+
+			void* uploadData{ nullptr };
+			uploader->Map(0, {}, &uploadData);
+
+//			using uploadDataAlloc_t = hfog::Alloc::Stack<alignof(D3D12_SUBRESOURCE_DATA), sizeof(D3D12_SUBRESOURCE_DATA) * 16>;
+//			uploadDataAlloc_t uploadAlloc;
+//			fovere::Array::Universal<uploadDataAlloc_t,	D3D12_SUBRESOURCE_DATA> dataToUpdate(&uploadAlloc);
+//
+//			using offsetDataAlloc_t = hfog::Alloc::Stack<alignof(UINT64), sizeof(UINT64) * 16>;
+//			offsetDataAlloc_t offsetAlloc;
+//			fovere::Array::Universal<offsetDataAlloc_t, UINT64> offsetToUpdate(&offsetAlloc);
+
+			UINT uploadFenceId{ 0 };
+
+			this->atStreamerReady.wait(false);
+
+			auto time{ 0.f };
+
+			int currMeshId{ 0 };
+			static constexpr float CHANGE_TIME{ 1.f };
+			time = CHANGE_TIME;
+
+			while (!stoken.stop_requested())
+			{
+
+				const auto vPkg{ this->pGraphicsStreamer->getStreamPkg() };
+				if (std::holds_alternative<UACE::Map::StreamerPkg::MeshData>(vPkg))
+				{
+					const auto meshDataPkg{ std::get<UACE::Map::StreamerPkg::MeshData>(vPkg) };
+					const auto objId{ meshDataPkg.objId };
+					const auto geometryData{ meshDataPkg.blob };
+
+					int numOfVertices{ 0 };
+					if (geometryData.size() < sizeof(numOfVertices))
+						continue;
+					
+					std::memcpy(&numOfVertices, geometryData.data(), sizeof(numOfVertices));
+					const auto verticesDataBytes{ numOfVertices * sizeof(Vertex) };
+					
+					if (geometryData.size() < verticesDataBytes)
+						continue;
+
+					const auto numOfIndicesDataOffset{ verticesDataBytes + sizeof(numOfVertices) };
+					int numOfIndices{ 0 };
+					if (geometryData.size() < numOfIndicesDataOffset + sizeof(numOfIndices))
+						continue;
+
+					std::memcpy(&numOfIndices, geometryData.data() + numOfIndicesDataOffset, sizeof(numOfIndices));
+					const auto indicesDataBytes{ numOfIndices * sizeof(index_t) };
+
+					if (geometryData.size() < indicesDataBytes)
+						continue;
+
+					if (this->uploadFence->GetCompletedValue() < uploadFenceId)
+					{
+
+						auto eventHandler{ CreateEventEx(nullptr, "", 0, EVENT_ALL_ACCESS) };
+						this->uploadFence->SetEventOnCompletion(uploadFenceId, eventHandler);
+						WaitForSingleObject(eventHandler, INFINITE);
+						CloseHandle(eventHandler);
+
+					}
+
+					const auto verticesDataPtr{ geometryData.data() + sizeof(numOfVertices) };
+					const auto verticesOffset{ 0 };
+					std::memcpy(uploadData, verticesDataPtr, verticesDataBytes);
+
+					const auto indicesOffset{ sizeof(numOfVertices) + verticesDataBytes };
+					const auto indicesDataPtr{ geometryData.data() + indicesOffset + sizeof(numOfIndices) };
+					std::memcpy(static_cast<char*>(uploadData) + verticesDataBytes, indicesDataPtr, indicesDataBytes);
+
+					++this->atAquiredMeshParts;
+
+					BufferUpdateInfo info{};
+					info.verticesOffset = 0;
+					info.verticesDataSize = verticesDataBytes;
+					info.indicesOffset = 0;
+					info.indicesDataSize = indicesDataBytes;
+					info.type = BufferUpdateInfo::TYPE::ALLOCATE;
+
+					this->bufferUpdateInfo->push(info);
+
+					cmdListAllocator->Reset();
+					uploadCmdList->Reset(cmdListAllocator.Get(), nullptr);
+
+					const auto copyDestBarriers{ std::to_array<D3D12_RESOURCE_BARRIER>({
+						CD3DX12_RESOURCE_BARRIER::Transition(this->vBuffer.Get(), D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COPY_DEST),
+						CD3DX12_RESOURCE_BARRIER::Transition(this->iBuffer.Get(), D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COPY_DEST)
+					}) };
+					uploadCmdList->ResourceBarrier(copyDestBarriers.size(), copyDestBarriers.data());
+
+					uploadCmdList->CopyBufferRegion(this->vBuffer.Get(), 0, uploader.Get(), 0, verticesDataBytes);
+					uploadCmdList->CopyBufferRegion(this->iBuffer.Get(), 0, uploader.Get(), verticesDataBytes, indicesDataBytes);
+
+					const auto commonBarriers{ std::to_array<D3D12_RESOURCE_BARRIER>({
+						CD3DX12_RESOURCE_BARRIER::Transition(this->vBuffer.Get(), D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COMMON),
+						CD3DX12_RESOURCE_BARRIER::Transition(this->iBuffer.Get(), D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COMMON)
+					}) };
+					uploadCmdList->ResourceBarrier(commonBarriers.size(), commonBarriers.data());
+
+					uploadCmdList->Close();
+
+					{
+						ID3D12CommandList* listArray[]{ uploadCmdList.Get() };
+						this->qCmd->ExecuteCommandLists(_countof(listArray), listArray);
+					}
+					this->qCmd->Signal(this->uploadFence.Get(), ++uploadFenceId);
+
+				}
+			}
+		}
+
 		void draw(UINT width, UINT height)
 		{
 
@@ -631,7 +888,7 @@ export namespace Purr
 			}
 
 			this->vBuffer = D3D12Utils::createDefaultBuffer(this->device.Get(), this->cmdList.Get(), 
-				vertices.data(), vertices.size() * sizeof(Vertex), &this->vbUploader);
+				nullptr, 10_MB, &this->vbUploader);
 			if (this->vBuffer == nullptr)
 			{
 				return false;
@@ -642,14 +899,14 @@ export namespace Purr
 			this->vbv.StrideInBytes = sizeof(Vertex);
 
 			this->iBuffer = D3D12Utils::createDefaultBuffer(this->device.Get(), this->cmdList.Get(), 
-				indices.data(), indices.size() * sizeof(index_t), &this->ibUploader);
+				nullptr, 10_MB, &this->ibUploader);
 			if (this->iBuffer == nullptr)
 			{
 				return false;
 			}
 
 			this->ibv.BufferLocation = this->iBuffer->GetGPUVirtualAddress();
-			this->ibv.Format = DXGI_FORMAT::DXGI_FORMAT_R16_UINT;
+			this->ibv.Format = DXGI_FORMAT::DXGI_FORMAT_R32_UINT;
 			this->ibv.SizeInBytes = indices.size() * sizeof(index_t);
 
 			this->cBuffer.init(this->device.Get());
@@ -720,6 +977,11 @@ export namespace Purr
 				return false;
 			}
 
+			if (const auto hFenceCreation{ this->device->CreateFence(0, D3D12_FENCE_FLAGS::D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&this->uploadFence)) }; 
+				FAILED(hFenceCreation))
+			{
+				return false;
+			}
 			if (const auto hFenceCreation{ this->device->CreateFence(0, D3D12_FENCE_FLAGS::D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&this->fence)) }; 
 				FAILED(hFenceCreation))
 			{
@@ -1028,6 +1290,7 @@ export namespace Purr
 			gpsDesc.SampleDesc.Count = 1;
 			gpsDesc.SampleDesc.Quality = 0;
 			gpsDesc.DSVFormat = DEPTH_STENCIL_FORMAT;
+			gpsDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 
 			const auto hPso{ device->CreateGraphicsPipelineState(&gpsDesc, IID_PPV_ARGS(&this->pso)) };
 			if (FAILED(hPso))
@@ -1061,6 +1324,16 @@ export namespace Purr
 
 		void drawCube(UINT width, UINT height)
 		{
+
+			if (BufferUpdateInfo updateInfo; this->bufferUpdateInfo->copyAndPop(&updateInfo))
+			{
+				this->vbv.BufferLocation = this->vBuffer->GetGPUVirtualAddress() + updateInfo.verticesOffset;
+				this->vbv.SizeInBytes = updateInfo.verticesDataSize;
+				this->vbv.StrideInBytes = sizeof(Vertex);
+				this->ibv.BufferLocation = this->iBuffer->GetGPUVirtualAddress() + updateInfo.indicesOffset;
+				this->ibv.SizeInBytes = updateInfo.indicesDataSize;
+				this->ibv.Format = DXGI_FORMAT::DXGI_FORMAT_R32_UINT;
+			}
 
 			this->cmdList->IASetVertexBuffers(0, 1, &this->vbv);
 			this->cmdList->IASetIndexBuffer(&this->ibv);
@@ -1129,11 +1402,14 @@ export namespace Purr
 
 			this->cmdList->SetGraphicsRootConstantBufferView(0, this->cBuffer->GetGPUVirtualAddress());
 
-			this->cmdList->DrawIndexedInstanced(static_cast<UINT>(indices.size()), 1, 0, 0, 0);
+			const auto numOfIndices{ this->ibv.SizeInBytes / sizeof(index_t) };
+			this->cmdList->DrawIndexedInstanced(numOfIndices, 1, 0, 0, 0);
 
 		}
 
 	private:
+		mainAllocator_t mainAllocator;
+
 		UINT rtvDescriptorSize{};
 		UINT srvDescriptorSize{};
 		UINT cbvDescriptorSize{};
@@ -1146,6 +1422,7 @@ export namespace Purr
 		cptr_t<ID3D12Device> device{ nullptr };
 
 		cptr_t<ID3D12Fence> initializationFence{ nullptr };
+		cptr_t<ID3D12Fence> uploadFence{ nullptr };
 		cptr_t<ID3D12Fence> fence{ nullptr };
 
 		cptr_t<ID3D12CommandQueue> qCmd{ nullptr };
@@ -1193,20 +1470,26 @@ export namespace Purr
 
 		UINT64 syncFenceMainId{ 0 };
 
+		bufferInfoTransport_t bufferUpdateInfo;
+
 		Purr::Camera camera{};
 		std::atomic<Purr::Camera> uiCameraData;
 		std::atomic<Purr::Camera> streamedCameraData;
 		std::atomic_bool atbUseUICameraData{  };
 
 		std::jthread thStreamer;
+		std::jthread thGraphicsStreamer;
 		std::jthread thUIWork;
 		std::jthread thLogicWork;
 
 		std::atomic_flag atStreamerReady = ATOMIC_FLAG_INIT;
 
 		UACE::Map::Streamer<threadAlloc_t>* pStreamer;
+		UACE::Map::Streamer<threadAlloc_t>* pGraphicsStreamer;
 		std::barrier<std::_No_completion_function> syncMainWork;
 		std::barrier<std::_No_completion_function> syncWorkerMain;
+
+		std::atomic_char32_t atAquiredMeshParts{};
 
 		HWND window{};
 

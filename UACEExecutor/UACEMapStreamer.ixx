@@ -95,7 +95,7 @@ export namespace UACE::Map
 		[[nodiscard]] constexpr auto getStreamPkg()
 		{
 			streamerPkg_t outPkg;
-			const auto bSuccess{ this->queue.pop(&outPkg) };
+			const auto bSuccess{ this->queue.copyAndPop(&outPkg) };
 			if (!bSuccess)
 				outPkg = StreamerPkg::Empty();
 			return outPkg;

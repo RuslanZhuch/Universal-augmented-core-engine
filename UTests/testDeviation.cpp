@@ -34,7 +34,7 @@ TEST(deviationCoder, JsonCoderMesh)
 	constexpr char jsonString[]{ "\
 		{\"PkgType\": \"Deviation\",\
 		\"ObjectName\" : \"TestObj1\",\
-		\"DeviationType\" : \"Mesh\",\
+		\"DeviationType\" : \"Geometry\",\
 		\"DeviationId\" : 14,\
 		\"ObjectType\" : \"MESH\"}\
 " };
@@ -44,7 +44,7 @@ TEST(deviationCoder, JsonCoderMesh)
 	const auto devPkg{ std::get_if<static_cast<size_t>(UACE::JsonCoder::PKG_TYPE::DEVIATION)>(&decodedVariant) };
 
 	EXPECT_STRCASEEQ(devPkg->objectName.data(), "TestObj1");
-	EXPECT_STRCASEEQ(devPkg->deviationType.data(), "Mesh");
+	EXPECT_STRCASEEQ(devPkg->deviationType.data(), "Geometry");
 	EXPECT_EQ(devPkg->deviationId, 14);
 	EXPECT_EQ(devPkg->objectType, UACE::JsonCoder::ObjectType::MESH);
 
@@ -745,7 +745,7 @@ TEST(deviationDecoder, decodeFromClient)
 	constexpr char jsonMesh[]{ "\
 		{\"PkgType\": \"Deviation\",\
 		\"ObjectName\" : \"ObjBase\",\
-		\"DeviationType\" : \"Mesh\",\
+		\"DeviationType\" : \"Geometry\",\
 		\"DeviationId\" : 1,\
 		\"ObjectType\" : \"MESH\"}\
 " };
@@ -805,7 +805,7 @@ TEST(deviationDecoder, decodeCamera)
 	prepareDatabase();
 	UACE::DeviationLogger logger("loggerDatabase.sqlite");
 
-	hfog::Alloc::Unified<128_B, 1_kB> ubAlloc;
+	hfog::Alloc::Unified<128_B, 4_kB> ubAlloc;
 
 	BasicTCPServer server(6000);
 	std::atomic_flag syncPoint = ATOMIC_FLAG_INIT;

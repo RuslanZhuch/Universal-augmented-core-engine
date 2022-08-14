@@ -36,7 +36,7 @@ public:
 	using retValueType = typename TRet;
 
 	Mirror() = delete;
-	explicit constexpr Mirror(TVal* valPtr) noexcept
+	explicit constexpr Mirror(TVal valPtr) noexcept
 	{
 		this->valPtr = valPtr;
 	}
@@ -79,7 +79,7 @@ public:
 	}
 
 private:
-	TVal* valPtr{ nullptr };
+	TVal valPtr{ };
 	std::atomic_flag afInUse = ATOMIC_FLAG_INIT;
 	RetWrapper<TRet> retValue;
 
@@ -122,12 +122,12 @@ export namespace UACE::GuardCopy
 			}
 		}
 
-		[[nodiscard]] TMirror::valueType* getPtr() const noexcept
+		[[nodiscard]] TMirror::valueType getPtr() const noexcept
 		{
 			if (this->mirror == nullptr)
-				return nullptr;
+				return {};
 			if (!this->mirror->getInUse())
-				return nullptr;
+				return {};
 			return this->mirror->getPtr();
 		}
 
@@ -153,7 +153,7 @@ export namespace UACE::GuardCopy
 		using TMirror = Mirror<TVal, TRet>;
 
 	public:
-		explicit Holder(TVal* valPtr) noexcept
+		explicit Holder(TVal valPtr) noexcept
 			:mirror(valPtr)
 		{}
 		Holder(const Holder&) = delete;

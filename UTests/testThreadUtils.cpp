@@ -55,7 +55,7 @@ TEST(threadsUtils, tsGuardCopyReturn)
 
 	objToWait_t valToWait{ 5 };
 
-	auto owner{ UACE::GuardCopy::Holder<objToWait_t, objToReturn_t>(&valToWait) };
+	auto owner{ UACE::GuardCopy::Holder<objToWait_t*, bool>(&valToWait) };
 	auto mirror{ owner.createMirror() };
 
 	EXPECT_FALSE(owner.getReturned().has_value());

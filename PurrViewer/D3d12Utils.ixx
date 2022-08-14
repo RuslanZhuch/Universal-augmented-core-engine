@@ -45,6 +45,9 @@ export namespace D3D12Utils
 			return nullptr;
 		}
 
+		if (initData == nullptr)
+			return defaultBuffer;
+
 		D3D12_SUBRESOURCE_DATA subData{};
 		subData.pData = initData;
 		subData.RowPitch = byteSize;
@@ -87,6 +90,16 @@ export namespace D3D12Utils
 	constexpr UINT calculateCBufferSize(UINT size)
 	{
 		return (size + 255) & ~255;
+	}
+
+	constexpr UINT align(UINT uLocation, UINT uAlign)
+	{
+		if ((0 == uAlign) || (uAlign & (uAlign - 1)))
+		{
+			return 0;
+		}
+
+		return ((uLocation + (uAlign - 1)) & ~(uAlign - 1));
 	}
 
 	template<typename T>

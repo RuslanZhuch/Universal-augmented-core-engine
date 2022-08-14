@@ -13,6 +13,7 @@ import UACEDeviationLogger;
 import UACEViewerUtils;
 //import UACEAllocator;
 import hfog.Core;
+import fovere.Array.Universal;
 //import MemoryManagerCommon;
 
 using namespace hfog::MemoryUtils::Literals;
@@ -73,8 +74,12 @@ export namespace UACE
 			const std::string_view ip, 
 			int port,
 			size_t bufferSize = 1_kB)
-			:desc(desc), client(alloc, ip, port, bufferSize)
+			:
+			desc(desc), 
+			client(alloc, ip, port, bufferSize),
+			recPkg(alloc)
 		{
+			recPkg.resize(bufferSize);
 			std::memset(this->dbName, 0, sizeof(this->dbName));
 			std::memcpy(this->dbName, dbFile.data(), dbFile.size());
 		}
@@ -86,16 +91,16 @@ export namespace UACE
 				return;
 			}
 
-			const auto recSize0{ client.popPkg(this->recPkg.data(), this->recPkg.size()) };
+			const auto recSize0{ client.popPkg(&this->recPkg[0], this->recPkg.getLen())};
 
-			const auto pkgVariant{ UACE::JsonCoder::decode({ this->recPkg.data(), recSize0 }) };
+			const auto pkgVariant{ UACE::JsonCoder::decode({ &this->recPkg[0], recSize0 }) };
 
 			if (const auto pkg{ std::get_if<static_cast<size_t>(UACE::JsonCoder::PKG_TYPE::DEVIATION)>(&pkgVariant) }; pkg != nullptr)
 			{
 
 				auto logger{ UACE::DeviationLogger(this->dbName) };
 
-				const auto recSize1{ client.popPkg(recPkg.data(), recPkg.size()) };
+				const auto recSize1{ client.popPkg(&this->recPkg[0], recPkg.getLen()) };
 
 				const auto objectName{ pkg->objectName.data() };
 				const auto hashObjectId{ UACE::ViewerUtils::hashString(objectName) };
@@ -103,18 +108,18 @@ export namespace UACE
 				if (strcmp(pkg->deviationType.data(), "Transform") == 0)
 				{
 					const auto objId{ logger.getObjectId(hashObjectId) };
-					if (logger.setObjectTransform(objId, { recPkg.data(), recSize1 }))
-						this->desc.cbOnTransform(objId, { recPkg.data(), recSize1 });
+					if (logger.setObjectTransform(objId, { &this->recPkg[0], recSize1 }))
+						this->desc.cbOnTransform(objId, { &this->recPkg[0], recSize1 });
 				}
-				else if (strcmp(pkg->deviationType.data(), "Mesh") == 0)
+				else if (strcmp(pkg->deviationType.data(), "Geometry") == 0)
 				{
 					const auto objId{ logger.getObjectId(hashObjectId) };
-					if (logger.setObjectMesh(objId, { recPkg.data(), recSize1 }))
-						this->desc.cbOnMesh(objId, { recPkg.data(), recSize1 });
+					if (logger.setObjectMesh(objId, { &this->recPkg[0], recSize1 }))
+						this->desc.cbOnMesh(objId, { &this->recPkg[0], recSize1 });
 				}
 				else if (strcmp(pkg->deviationType.data(), "Creation") == 0)
 				{
-					const auto metadata{ std::string_view(recPkg.data(), recSize1) };
+					const auto metadata{ std::string_view(&this->recPkg[0], recSize1) };
 					const auto newObjId{ logger.logNewObject(hashObjectId, metadata) };
 
 
@@ -125,7 +130,7 @@ export namespace UACE
 				}
 				else if (strcmp(pkg->deviationType.data(), "Camera") == 0)
 				{
-					const auto cameraRawData{ std::string_view(recPkg.data(), recSize1) };
+					const auto cameraRawData{ std::string_view(&this->recPkg[0], recSize1) };
 					
 					const auto objId{ logger.getObjectId(hashObjectId) };
 					if (logger.setCamera(objId, cameraRawData))
@@ -139,7 +144,7 @@ export namespace UACE
 				}
 				else if (strcmp(pkg->deviationType.data(), "Rename") == 0)
 				{
-					const auto newName{ std::string_view(recPkg.data(), recSize1) };
+					const auto newName{ std::string_view(&this->recPkg[0], recSize1) };
 					const auto hashNewNameId{ UACE::ViewerUtils::hashString(newName) };
 
 					const auto objId{ logger.getObjectId(hashObjectId) };
@@ -150,7 +155,7 @@ export namespace UACE
 				}
 				else if (strcmp(pkg->deviationType.data(), "Swap") == 0)
 				{
-					const auto newName{ std::string_view(recPkg.data(), recSize1) };
+					const auto newName{ std::string_view(&this->recPkg[0], recSize1) };
 					const auto hashNewNameId{ UACE::ViewerUtils::hashString(newName) };
 
 					const auto objId{ logger.getObjectId(hashObjectId) };
@@ -165,7 +170,7 @@ export namespace UACE
 			else
 			{
 				// Not happy path check
-				[[maybe_unused]] const auto bPopped{ client.popPkg(recPkg.data(), recPkg.size()) };
+				[[maybe_unused]] const auto bPopped{ client.popPkg(&recPkg[0], recPkg.getLen()) };
 			}
 
 		}
@@ -177,8 +182,7 @@ export namespace UACE
 		DevDesc desc;
 		UACE::Client<Alloc> client;
 
-		std::array<char, 1_kB> recPkg{};
-
+		fovere::Array::Universal<Alloc, char> recPkg;
 		char dbName[32];
 
 	};

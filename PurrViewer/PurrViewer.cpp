@@ -3,14 +3,18 @@
 #include "imgui/backends/imgui_impl_win32.h"
 
 import RenderCore;
+import hfog.Core;
+import hfog.Alloc;
+
+#include <vector>
 
 HINSTANCE hInst;
+
+using namespace hfog::MemoryUtils::Literals;
 
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-
-static Purr::Renderer renderer;
 
 int WINAPI WinMain(
     _In_ HINSTANCE hInstance,
@@ -84,6 +88,12 @@ int WINAPI WinMain(
 
     const auto width{ cRc.right - cRc.left };
     const auto height{ cRc.bottom - cRc.top };
+
+    std::vector<byte_t> mainBuffer(10_MB);
+
+    using alloc_t = hfog::Alloc::UnifiedExt<512_B, 8_MB>;
+    alloc_t mainAllocator(hfog::MemoryBlock(mainBuffer.data(), mainBuffer.size()));
+    Purr::Renderer renderer(&mainAllocator);
 
     if (!renderer.init(hWnd, width, height))
     {
